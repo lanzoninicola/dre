@@ -1,6 +1,6 @@
 // app/components/OFXPreview.tsx
 import { useState } from 'react';
-import { ImportReport, OFXTransaction } from '../ofx';
+import { OFXTransaction, ImportReport } from '../ofx.types';
 
 
 interface OFXPreviewProps {

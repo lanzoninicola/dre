@@ -1,32 +1,10 @@
 import crypto from "crypto";
-
-export interface OFXTransaction {
-  id: string;
-  date: Date;
-  amount: number;
-  description: string;
-  type: string;
-  memo?: string;
-  checkNumber?: string;
-  referenceNumber?: string;
-}
-
-export interface OFXData {
-  accountId: string;
-  bankId: string;
-  accountType: string;
-  routingNumber?: string;
-  balanceAmount?: number;
-  balanceDate?: Date;
-  transactions: OFXTransaction[];
-}
-
-export interface OFXParseResult {
-  success: boolean;
-  data?: OFXData;
-  error?: string;
-  warnings?: string[];
-}
+import {
+  OFXParseResult,
+  OFXTransaction,
+  OFXData,
+  ImportReport,
+} from "./ofx.types";
 
 export function parseOFX(ofxContent: string): OFXParseResult {
   try {
@@ -211,23 +189,6 @@ export function generateFileHash(content: string): string {
   return crypto.createHash("md5").update(content).digest("hex");
 }
 
-export function validateOFXFile(file: File): {
-  valid: boolean;
-  error?: string;
-} {
-  // Validar extensão
-  if (!file.name.toLowerCase().endsWith(".ofx")) {
-    return { valid: false, error: "Arquivo deve ter extensão .ofx" };
-  }
-
-  // Validar tamanho (máximo 10MB)
-  if (file.size > 10 * 1024 * 1024) {
-    return { valid: false, error: "Arquivo muito grande (máximo 10MB)" };
-  }
-
-  return { valid: true };
-}
-
 // Utilitário para categorizar transações automaticamente
 export function categorizeTransaction(description: string): string {
   const desc = description.toLowerCase();
@@ -278,21 +239,6 @@ export function detectDuplicateTransactions(
     seen.add(key);
     return true;
   });
-}
-
-// Utilitário para gerar relatório de importação
-export interface ImportReport {
-  totalTransactions: number;
-  duplicatesRemoved: number;
-  dateRange: {
-    start: Date;
-    end: Date;
-  };
-  amountRange: {
-    min: number;
-    max: number;
-  };
-  categories: Record<string, number>;
 }
 
 export function generateImportReport(

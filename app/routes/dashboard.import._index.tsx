@@ -8,11 +8,11 @@ import prismaClient from "~/lib/prisma/client.server";
 import { OFXPreview } from "~/domain/ofx/components/ofx-preview";
 import { useOFXImport } from "~/domain/ofx/use-ofx-import";
 import { useImportHistory } from "~/domain/ofx/use-import-history";
-import { useFileValidation } from "~/domain/ofx/use-file-validation";
+
 import { PageLayout } from "~/components/layouts/page-layout";
 import { AlertTriangle, Building2, CheckCircle, Upload } from "lucide-react";
 import { GlassSelect } from "~/components/layouts/glass-select";
-import { validateOFXFile } from "~/domain/ofx/ofx";
+import { validateOFXFile } from "~/domain/ofx/ofx.client";
 
 export const loader: LoaderFunction = async ({ request }) => {
   const user = await requireUser(request);
@@ -24,7 +24,9 @@ export const loader: LoaderFunction = async ({ request }) => {
   });
 
   const recentImports = await prismaClient.importLog.findMany({
-    where: { userId: user.id },
+    where: {
+      companyId: user.company?.id,
+    },
     include: {
       company: true,
       _count: {
@@ -36,16 +38,27 @@ export const loader: LoaderFunction = async ({ request }) => {
   });
 
   const importCount = await prismaClient.importLog.count({
-    where: { userId: user.id },
+    where: {
+      companyId: user.company?.id,
+    },
   });
 
   const transactionCount = await prismaClient.bankTransaction.count({
     where: {
       importLog: {
-        userId: user.id
+        companyId: user.company?.id,
       }
     }
   });
+
+  console.log({
+    companies,
+    recentImports,
+    stats: {
+      totalImports: importCount || 0,
+      totalTransactions: transactionCount || 0,
+    }
+  })
 
   return json({
     companies,

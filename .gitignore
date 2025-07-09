@@ -1,0 +1,12 @@
+
+node_modules/
+
+.cache/
+
+package-lock.json
+
+build/
+
+.env
+
+amodomio-191.zip

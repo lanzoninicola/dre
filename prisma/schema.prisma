@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AccountingFirm {
+  id        String    @id @default(uuid())
+  name      String
+  users     User[]
+  companies Company[]
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("accounting_firms")
+}
+
+model User {
+  id               String          @id @default(uuid())
+  email            String          @unique
+  password         String
+  role             String // "admin", "contador", "empresa"
+  isActive         Boolean         @default(true) @map("is_active")
+  canManageUsers   Boolean         @default(false) @map("can_manage_users")
+  accountingFirmId String?         @map("accounting_firm_id")
+  accountingFirm   AccountingFirm? @relation(fields: [accountingFirmId], references: [id])
+  company          Company?
+  importLogs       ImportLog[]
+  auditLogs        AuditLog[]
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Company {
+  id               String          @id @default(uuid())
+  name             String
+  cnpj             String?
+  userId           String          @unique @map("user_id")
+  user             User            @relation(fields: [userId], references: [id])
+  accountingFirmId String          @map("accounting_firm_id")
+  accountingFirm   AccountingFirm  @relation(fields: [accountingFirmId], references: [id])
+  statements       BankStatement[]
+  imports          ImportLog[]
+  accounts         AccountPlan[]
+  dres             DRE[]
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  @@map("companies")
+}
+
+model ImportLog {
+  id           String            @id @default(uuid())
+  companyId    String            @map("company_id")
+  company      Company           @relation(fields: [companyId], references: [id])
+  userId       String            @map("user_id")
+  user         User              @relation(fields: [userId], references: [id])
+  fileName     String            @map("file_name")
+  importedAt   DateTime          @default(now()) @map("imported_at")
+  hash         String            @unique
+  transactions BankTransaction[]
+
+  @@map("import_logs")
+}
+
+model BankStatement {
+  id           String            @id @default(uuid())
+  companyId    String            @map("company_id")
+  company      Company           @relation(fields: [companyId], references: [id])
+  importedAt   DateTime          @default(now()) @map("imported_at")
+  hash         String            @unique
+  fileName     String            @map("file_name")
+  transactions BankTransaction[]
+
+  @@map("bank_statements")
+}
+
+model BankTransaction {
+  id          String        @id @default(uuid())
+  statementId String        @map("statement_id")
+  statement   BankStatement @relation(fields: [statementId], references: [id])
+  importLogId String        @map("import_log_id")
+  importLog   ImportLog     @relation(fields: [importLogId], references: [id])
+  date        DateTime
+  description String
+  amount      Decimal
+  accountId   String?       @map("account_id") // Opcional - pode não estar classificada
+  account     AccountPlan?  @relation(fields: [accountId], references: [id])
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@map("bank_transactions")
+}
+
+model AccountPlan {
+  id         String   @id @default(uuid())
+  companyId  String   @map("company_id")
+  company    Company  @relation(fields: [companyId], references: [id])
+  name       String
+  type       String // "receita", "despesa", "ativo", "passivo"
+  dreGroupId String   @map("dre_group_id")
+  dreGroup   DREGroup @relation(fields: [dreGroupId], references: [id])
+
+  bankTransactions BankTransaction[]
+
+  @@map("account_plan")
+}
+
+model DREGroup {
+  id       String        @id @default(uuid())
+  name     String
+  order    Int
+  type     String // "receita", "despesa", "resultado"
+  accounts AccountPlan[]
+
+  @@map("dre_group")
+}
+
+model DRE {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  company     Company  @relation(fields: [companyId], references: [id])
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  data        Json // Dados calculados da DRE
+  generatedAt DateTime @default(now()) @map("generated_at")
+
+  @@map("dre")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  details   Json? // Detalhes adicionais da ação
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_log")
+}

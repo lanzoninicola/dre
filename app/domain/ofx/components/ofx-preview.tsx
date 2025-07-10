@@ -1,49 +1,232 @@
-// app/components/OFXPreview.tsx
-import { useState } from 'react';
-import { OFXTransaction, ImportReport } from '../ofx.types';
+// app/domain/ofx/components/ofx-preview.tsx
+import { useState, useMemo } from "react";
+import {
+  Calendar,
+  DollarSign,
+  FileText,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  ArrowLeft,
+  Download,
+  Eye,
+  EyeOff
+} from "lucide-react";
 
+interface Transaction {
+  id: string;
+  date: string | Date;
+  description: string;
+  amount: number;
+  type?: string;
+  memo?: string;
+  checkNumber?: string;
+  referenceNumber?: string;
+}
+
+interface Report {
+  totalTransactions: number;
+  duplicatesFound: number;
+  uniqueTransactions: number;
+  totalAmount: number;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+}
 
 interface OFXPreviewProps {
-  transactions: OFXTransaction[];
-  report: ImportReport;
-  onConfirm: () => void;
+  transactions: Transaction[];
+  report: Report;
+  onConfirm: (selectedTransactionIds: string[]) => void;
   onCancel: () => void;
   loading?: boolean;
 }
 
-export function OFXPreview({ transactions, report, onConfirm, onCancel, loading = false }: OFXPreviewProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(
-    new Set(transactions.map(t => t.id))
-  );
+// Função para formatar data de forma segura
+function formatDateSafe(date: string | Date | null | undefined): string {
+  if (!date) return 'Data inválida';
 
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(transactions.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentTransactions = transactions.slice(startIndex, endIndex);
+  try {
+    let dateObj: Date;
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(amount);
-  };
+    if (typeof date === 'string') {
+      // Se for string, tenta parsear
+      dateObj = new Date(date);
+    } else {
+      dateObj = date;
+    }
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('pt-BR', {
+    // Verifica se a data é válida
+    if (isNaN(dateObj.getTime())) {
+      return 'Data inválida';
+    }
+
+    return dateObj.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
-    }).format(date);
-  };
+    });
+  } catch (error) {
+    console.error('Erro ao formatar data:', error);
+    return 'Data inválida';
+  }
+}
 
-  const toggleTransaction = (transactionId: string) => {
+// Função para formatar valor monetário
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(amount);
+}
+
+// Componente para o card de estatísticas do relatório
+function ReportStatsCard({ report }: { report: Report }) {
+  return (
+    <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-6 mb-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <FileText className="w-5 h-5 mr-2 text-indigo-600" />
+        Resumo da Importação
+      </h3>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-blue-50/80 backdrop-blur-sm rounded-xl p-4 border border-blue-200/50">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                <FileText className="w-4 h-4 text-white" />
+              </div>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-blue-800">Total</p>
+              <p className="text-lg font-bold text-blue-900">{report.totalTransactions}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-green-50/80 backdrop-blur-sm rounded-xl p-4 border border-green-200/50">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 text-white" />
+              </div>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">Únicas</p>
+              <p className="text-lg font-bold text-green-900">{report.uniqueTransactions}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-yellow-50/80 backdrop-blur-sm rounded-xl p-4 border border-yellow-200/50">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4 text-white" />
+              </div>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-yellow-800">Duplicadas</p>
+              <p className="text-lg font-bold text-yellow-900">{report.duplicatesFound}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-purple-50/80 backdrop-blur-sm rounded-xl p-4 border border-purple-200/50">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-white" />
+              </div>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-purple-800">Total</p>
+              <p className="text-lg font-bold text-purple-900">{formatCurrency(report.totalAmount)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {report.dateRange && (
+        <div className="mt-4 p-3 bg-gray-50/80 backdrop-blur-sm rounded-xl border border-gray-200/50">
+          <p className="text-sm text-gray-600">
+            <Calendar className="w-4 h-4 inline mr-1" />
+            Período: {formatDateSafe(report.dateRange.start)} até {formatDateSafe(report.dateRange.end)}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Componente para linha da transação
+function TransactionRow({
+  transaction,
+  isSelected,
+  onToggle
+}: {
+  transaction: Transaction;
+  isSelected: boolean;
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <tr className={`hover:bg-gray-50/50 transition-colors duration-200 ${isSelected ? 'bg-indigo-50/50' : ''}`}>
+      <td className="px-4 py-3">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggle(transaction.id)}
+          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+        />
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-900">
+        {formatDateSafe(transaction.date)}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
+        {transaction.description}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-900">
+        <span className={`font-medium ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          {formatCurrency(transaction.amount)}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-500">
+        {transaction.type || '-'}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
+        {transaction.memo || '-'}
+      </td>
+    </tr>
+  );
+}
+
+// Componente principal
+export function OFXPreview({
+  transactions,
+  report,
+  onConfirm,
+  onCancel,
+  loading = false
+}: OFXPreviewProps) {
+  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(
+    new Set(transactions.map(t => t.id))
+  );
+  const [showAll, setShowAll] = useState(false);
+
+  // Filtrar transações para exibição
+  const displayTransactions = useMemo(() => {
+    if (showAll) return transactions;
+    return transactions.slice(0, 10);
+  }, [transactions, showAll]);
+
+  // Funções para gerenciar seleção
+  const toggleTransaction = (id: string) => {
     const newSelected = new Set(selectedTransactions);
-    if (newSelected.has(transactionId)) {
-      newSelected.delete(transactionId);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
     } else {
-      newSelected.add(transactionId);
+      newSelected.add(id);
     }
     setSelectedTransactions(newSelected);
   };
@@ -56,185 +239,168 @@ export function OFXPreview({ transactions, report, onConfirm, onCancel, loading 
     }
   };
 
-  const selectedCount = selectedTransactions.size;
-  const selectedTotal = transactions
-    .filter(t => selectedTransactions.has(t.id))
-    .reduce((sum, t) => sum + t.amount, 0);
+  const handleConfirm = () => {
+    const selectedIds = Array.from(selectedTransactions);
+    onConfirm(selectedIds);
+  };
+
+  // Calcular estatísticas das transações selecionadas
+  const selectedStats = useMemo(() => {
+    const selectedTxs = transactions.filter(t => selectedTransactions.has(t.id));
+    const totalAmount = selectedTxs.reduce((sum, t) => sum + t.amount, 0);
+    return {
+      count: selectedTxs.length,
+      totalAmount
+    };
+  }, [transactions, selectedTransactions]);
 
   return (
-    <div className="bg-white shadow sm:rounded-lg">
-      <div className="px-4 py-5 sm:p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
-              Preview das Transações
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Revise as transações antes de importar
-            </p>
-          </div>
-          <div className="flex space-x-3">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      {/* Background decorativo */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-32 w-80 h-80 bg-gradient-to-br from-indigo-400/20 to-purple-600/20 rounded-full animate-pulse-decoration"></div>
+        <div className="absolute -bottom-40 -left-32 w-80 h-80 bg-gradient-to-tr from-purple-400/20 to-pink-600/20 rounded-full animate-pulse-decoration"></div>
+      </div>
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Preview da Importação</h1>
+              <p className="mt-2 text-gray-600">
+                Revise as transações antes de confirmar a importação
+              </p>
+            </div>
             <button
-              type="button"
               onClick={onCancel}
-              className="inline-flex justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white/60 backdrop-blur-sm hover:bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50"
             >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={selectedCount === 0 || loading}
-              className="inline-flex justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Importando...
-                </>
-              ) : (
-                `Importar ${selectedCount} transações`
-              )}
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar
             </button>
           </div>
         </div>
 
-        {/* Resumo */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-sm font-medium text-gray-500">Total de Transações</div>
-            <div className="mt-1 text-2xl font-semibold text-gray-900">{report.totalTransactions}</div>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-sm font-medium text-gray-500">Selecionadas</div>
-            <div className="mt-1 text-2xl font-semibold text-indigo-600">{selectedCount}</div>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-sm font-medium text-gray-500">Período</div>
-            <div className="mt-1 text-sm text-gray-900">
-              {formatDate(report.dateRange.start)} até {formatDate(report.dateRange.end)}
-            </div>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-sm font-medium text-gray-500">Valor Total Selecionado</div>
-            <div className={`mt-1 text-lg font-semibold ${selectedTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(selectedTotal)}
-            </div>
-          </div>
-        </div>
+        {/* Estatísticas */}
+        <ReportStatsCard report={report} />
 
-        {/* Tabela de transações */}
-        <div className="overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <input
-                    type="checkbox"
-                    checked={selectedTransactions.size === transactions.length}
-                    onChange={toggleAll}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Data
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Descrição
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Valor
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {currentTransactions.map((transaction) => (
-                <tr key={transaction.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+        {/* Transações */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200/50">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">
+                Transações ({transactions.length})
+              </h3>
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setShowAll(!showAll)}
+                  className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                >
+                  {showAll ? (
+                    <>
+                      <EyeOff className="w-4 h-4 mr-1" />
+                      Mostrar menos
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-4 h-4 mr-1" />
+                      Mostrar todas
+                    </>
+                  )}
+                </button>
+                <span className="text-sm text-gray-500">
+                  {selectedStats.count} selecionadas - {formatCurrency(selectedStats.totalAmount)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200/50">
+              <thead className="bg-gray-50/50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <input
                       type="checkbox"
-                      checked={selectedTransactions.has(transaction.id)}
-                      onChange={() => toggleTransaction(transaction.id)}
+                      checked={selectedTransactions.size === transactions.length}
+                      onChange={toggleAll}
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(transaction.date)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    <div className="max-w-xs truncate" title={transaction.description}>
-                      {transaction.description}
-                    </div>
-                    {transaction.memo && transaction.memo !== transaction.description && (
-                      <div className="text-xs text-gray-500 max-w-xs truncate" title={transaction.memo}>
-                        {transaction.memo}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
-                      {transaction.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <span className={transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {formatCurrency(transaction.amount)}
-                    </span>
-                  </td>
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Data
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Descrição
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Valor
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tipo
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Memo
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white/30 divide-y divide-gray-200/50">
+                {displayTransactions.map((transaction) => (
+                  <TransactionRow
+                    key={transaction.id}
+                    transaction={transaction}
+                    isSelected={selectedTransactions.has(transaction.id)}
+                    onToggle={toggleTransaction}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {!showAll && transactions.length > 10 && (
+            <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-200/50 text-center">
+              <p className="text-sm text-gray-500">
+                Mostrando 10 de {transactions.length} transações.{' '}
+                <button
+                  onClick={() => setShowAll(true)}
+                  className="text-indigo-600 hover:text-indigo-500 font-medium"
+                >
+                  Ver todas
+                </button>
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Paginação */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6">
-            <div className="text-sm text-gray-700">
-              Mostrando {startIndex + 1} a {Math.min(endIndex, transactions.length)} de {transactions.length} transações
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Anterior
-              </button>
-              <span className="px-3 py-1 text-sm text-gray-700">
-                Página {currentPage} de {totalPages}
-              </span>
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Próxima
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Resumo por categoria */}
-        {Object.keys(report.categories).length > 0 && (
-          <div className="mt-6">
-            <h4 className="text-sm font-medium text-gray-900 mb-3">Transações por Categoria</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {Object.entries(report.categories).map(([category, count]) => (
-                <div key={category} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <span className="text-xs text-gray-600">{category}</span>
-                  <span className="text-xs font-medium text-gray-900">{count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Ações */}
+        <div className="mt-8 flex items-center justify-end space-x-4">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="px-6 py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white/60 backdrop-blur-sm hover:bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={loading || selectedTransactions.size === 0}
+            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Importando...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Confirmar Importação ({selectedStats.count})
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

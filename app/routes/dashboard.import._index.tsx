@@ -6,14 +6,13 @@ import { useState, useRef, useEffect } from "react";
 import { requireUser } from "~/domain/auth/auth.server";
 import prismaClient from "~/lib/prisma/client.server";
 import { OFXPreview } from "~/domain/ofx/components/ofx-preview";
-import { useOFXImport } from "~/domain/ofx/use-ofx-import";
-import { useImportHistory } from "~/domain/ofx/use-import-history";
 import { PageLayout } from "~/components/layouts/page-layout";
 import { AlertTriangle, Building2, CheckCircle, Upload } from "lucide-react";
 import { GlassSelect } from "~/components/layouts/glass-select";
 import { validateOFXFile } from "~/domain/ofx/ofx.client";
 import { parseOFX, generateFileHash, detectDuplicateTransactions, generateImportReport } from "~/domain/ofx/ofx.server";
 import crypto from "crypto";
+import AlertMessage from "~/components/alert-message/alert-message";
 
 // ====================================
 // LOADER
@@ -351,48 +350,7 @@ function StatsCards({ stats, companiesCount }: { stats: any, companiesCount: num
   );
 }
 
-// Componente para alertas/mensagens de estado
-function AlertMessage({ type, message }: { type: 'error' | 'success' | 'warning', message: string }) {
-  const configs = {
-    error: {
-      bgColor: 'bg-red-50/80',
-      borderColor: 'border-red-200/50',
-      textColor: 'text-red-800',
-      iconColor: 'text-red-400',
-      icon: AlertTriangle
-    },
-    success: {
-      bgColor: 'bg-green-50/80',
-      borderColor: 'border-green-200/50',
-      textColor: 'text-green-800',
-      iconColor: 'text-green-400',
-      icon: CheckCircle
-    },
-    warning: {
-      bgColor: 'bg-yellow-50/80',
-      borderColor: 'border-yellow-200/50',
-      textColor: 'text-yellow-800',
-      iconColor: 'text-yellow-400',
-      icon: AlertTriangle
-    }
-  };
 
-  const config = configs[type];
-  const Icon = config.icon;
-
-  return (
-    <div className={`mb-6 p-4 ${config.bgColor} backdrop-blur-sm border ${config.borderColor} rounded-xl`}>
-      <div className="flex">
-        <div className="flex-shrink-0">
-          <Icon className={`h-5 w-5 ${config.iconColor}`} />
-        </div>
-        <div className="ml-3">
-          <p className={`text-sm ${config.textColor}`}>{message}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Componente para área de upload
 function FileUploadArea({

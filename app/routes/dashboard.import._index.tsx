@@ -10,7 +10,7 @@ import { PageLayout } from "~/components/layouts/page-layout";
 import { AlertTriangle, Building2, CheckCircle, Upload } from "lucide-react";
 import { GlassSelect } from "~/components/layouts/glass-select";
 import { validateOFXFile } from "~/domain/ofx/ofx.client";
-import { parseOFX, generateFileHash, detectDuplicateTransactions, generateImportReport } from "~/domain/ofx/ofx.server";
+import { parseOFX, generateFileHash, detectDuplicateTransactions, generateImportReport } from "~/domain/ofx/ofx-parser.server";
 import crypto from "crypto";
 import AlertMessage from "~/components/alert-message/alert-message";
 

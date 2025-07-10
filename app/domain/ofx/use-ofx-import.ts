@@ -4,12 +4,12 @@ import {
   validateOFXFile,
   detectDuplicateTransactions,
   generateImportReport,
-} from "./ofx.server";
+} from "./ofx-parser.server";
 import type {
   OFXTransaction,
   ImportReport,
   OFXParseResult,
-} from "./ofx.server";
+} from "./ofx-parser.server";
 
 interface ImportState {
   step: "idle" | "parsing" | "preview" | "importing" | "success" | "error";

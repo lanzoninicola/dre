@@ -29,11 +29,11 @@ export function Navbar({ user }: NavbarProps) {
                 <Sparkles className="w-1.5 h-1.5 text-white" />
               </div>
             </div>
-            <div>
+            <Link to="/dashboard">
               <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
                 FinanceFlow
               </h1>
-            </div>
+            </Link>
           </div>
 
           {/* Desktop Menu */}

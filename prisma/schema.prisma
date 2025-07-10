@@ -7,137 +7,563 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ====================================
+// MODELOS PRINCIPAIS
+// ====================================
+
+/// Escritórios Contábeis
+///
+/// Representa escritórios de contabilidade que podem ter:
+/// - Múltiplos contadores funcionários
+/// - Múltiplas empresas clientes
+/// - Pode ser um contador autônomo (1 pessoa só)
+///
+/// Exemplos:
+/// - "Contabilidade Silva & Associados" (grande escritório)
+/// - "João Silva - Contador" (autônomo)
 model AccountingFirm {
-  id        String    @id @default(uuid())
-  name      String
+  /// ID único do escritório
+  id       String  @id @default(uuid())
+  /// Nome do escritório ou contador autônomo
+  name     String
+  /// CNPJ do escritório (pode ser NULL para autônomo com CPF)
+  cnpj     String? @unique
+  /// CPF para contador autônomo
+  cpf      String? @unique
+  email    String?
+  phone    String?
+  address  String?
+  /// Status ativo/inativo
+  isActive Boolean @default(true) @map("is_active")
+
+  /// true = contador solo, false = escritório
+  isAutonomous Boolean @default(false) @map("is_autonomous")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// Contadores que trabalham neste escritório
   users     User[]
+  /// Empresas atendidas por este escritório
   companies Company[]
-  createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("accounting_firms")
 }
 
+/// Usuários do Sistema
+///
+/// Sistema simplificado de roles e tipos:
+///
+/// ROLES:
+/// - admin: Pode gerenciar usuários, criar empresas, acesso total
+/// - operator: Operacional, trabalha com transações e relatórios
+///
+/// TYPES:
+/// - accountingFirm: Usuário pertence a um escritório contábil
+/// - company: Usuário pertence a uma empresa
+///
+/// Combinações possíveis:
+/// 1. admin + accountingFirm: Dono do escritório contábil
+/// 2. operator + accountingFirm: Contador funcionário
+/// 3. admin + company: Dono/gerente da empresa
+/// 4. operator + company: Funcionário da empresa
+///
+/// Regras:
+/// - type = "accountingFirm": DEVE ter accountingFirmId
+/// - type = "company": DEVE ter companyId
 model User {
-  id               String          @id @default(uuid())
-  email            String          @unique
-  password         String
-  role             String // "admin", "contador", "empresa"
-  isActive         Boolean         @default(true) @map("is_active")
-  canManageUsers   Boolean         @default(false) @map("can_manage_users")
+  id       String  @id @default(uuid())
+  email    String  @unique
+  password String
+  name     String?
+
+  /// Role: 'admin' ou 'operator'
+  role     String
+  /// Type: 'accountingFirm' ou 'company'
+  type     String
+  /// Status ativo/inativo
+  isActive Boolean @default(true) @map("is_active")
+
+  /// Permissões globais (normalmente só para admins)
+  canManageUsers     Boolean @default(false) @map("can_manage_users")
+  canCreateCompanies Boolean @default(false) @map("can_create_companies")
+
+  /// Vinculação com escritório (obrigatório se type = "accountingFirm")
   accountingFirmId String?         @map("accounting_firm_id")
   accountingFirm   AccountingFirm? @relation(fields: [accountingFirmId], references: [id])
-  company          Company?
-  importLogs       ImportLog[]
-  auditLogs        AuditLog[]
-  createdAt        DateTime        @default(now()) @map("created_at")
+
+  /// Vinculação com empresa (obrigatório se type = "company")
+  companyId String?  @map("company_id")
+  company   Company? @relation("UserCompany", fields: [companyId], references: [id])
+
+  /// Metadados de uso
+  lastLoginAt DateTime? @map("last_login_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  /// Relacionamentos
+  companyAccesses        UserCompanyAccess[]
+  importLogs             ImportLog[]
+  auditLogs              AuditLog[]
+  classifiedTransactions BankTransaction[]   @relation("ClassifiedBy")
+  generatedDres          DRE[]               @relation("GeneratedBy")
+  grantedAccesses        UserCompanyAccess[] @relation("GrantedBy")
+  Company                Company[]
 
   @@map("users")
 }
 
+/// Empresas
+///
+/// Representa empresas que usam o sistema para gestão contábil.
+///
+/// Cenários:
+/// 1. Empresa com contador: tem owner (empresário) + accountingFirm + usuários vinculados
+/// 2. Empresa sem contador: só tem owner + usuários internos
+/// 3. Contador autônomo: owner é o próprio contador (empresa_admin)
+///
+/// O owner sempre tem acesso total automaticamente.
+/// Outros usuários podem ser:
+/// - Vinculados diretamente (company) para empresa_user
+/// - Com acesso via UserCompanyAccess para escritorio_user
 model Company {
-  id               String          @id @default(uuid())
-  name             String
-  cnpj             String?
-  userId           String          @unique @map("user_id")
-  user             User            @relation(fields: [userId], references: [id])
-  accountingFirmId String          @map("accounting_firm_id")
-  accountingFirm   AccountingFirm  @relation(fields: [accountingFirmId], references: [id])
-  statements       BankStatement[]
-  imports          ImportLog[]
-  accounts         AccountPlan[]
-  dres             DRE[]
-  createdAt        DateTime        @default(now()) @map("created_at")
+  id      String  @id @default(uuid())
+  /// Razão social da empresa
+  name    String
+  cnpj    String? @unique
+  email   String?
+  phone   String?
+  address String?
+
+  /// NULL = empresa sem contador
+  accountingFirmId String?         @map("accounting_firm_id")
+  accountingFirm   AccountingFirm? @relation(fields: [accountingFirmId], references: [id])
+
+  /// Status ativo/inativo
+  isActive         Boolean @default(true) @map("is_active")
+  /// Para futuras funcionalidades
+  subscriptionPlan String  @default("basic") @map("subscription_plan")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// Usuários vinculados diretamente (empresa_admin, empresa_user)
+  users        User[]              @relation("UserCompany")
+  /// Acessos adicionais (contadores, etc.)
+  userAccesses UserCompanyAccess[]
+  statements   BankStatement[]
+  imports      ImportLog[]
+  accounts     AccountPlan[]
+  dres         DRE[]
+  auditLogs    AuditLog[]
+  User         User?               @relation(fields: [userId], references: [id])
+  userId       String?
 
   @@map("companies")
 }
 
-model ImportLog {
-  id           String            @id @default(uuid())
-  companyId    String            @map("company_id")
-  company      Company           @relation(fields: [companyId], references: [id])
-  userId       String            @map("user_id")
-  user         User              @relation(fields: [userId], references: [id])
-  fileName     String            @map("file_name")
-  importedAt   DateTime          @default(now()) @map("imported_at")
-  hash         String            @unique
-  transactions BankTransaction[]
+// ====================================
+// CONTROLE DE ACESSO
+// ====================================
 
-  @@map("import_logs")
+/// Controle de Acesso por Empresa
+///
+/// Define quem pode acessar cada empresa e com quais permissões.
+///
+/// Casos de uso:
+/// 1. Contador de escritório acessa múltiplas empresas clientes
+/// 2. Funcionário da empresa tem acesso limitado
+/// 3. Contador substituto tem acesso temporário
+///
+/// Permissões disponíveis:
+/// - read: Ver dados (relatórios, transações)
+/// - write: Criar/editar (classificar transações, plano de contas)
+/// - admin: Gerenciar usuários da empresa
+/// - import: Importar extratos bancários
+/// - export: Exportar relatórios
+/// - dre_generate: Gerar DREs
+model UserCompanyAccess {
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Array de permissões: ['read', 'write', 'admin', 'import', 'export', 'dre_generate']
+  permissions String[] @default(["read"])
+
+  /// Quem deu este acesso
+  grantedByUserId String?   @map("granted_by_user_id")
+  grantedBy       User?     @relation("GrantedBy", fields: [grantedByUserId], references: [id])
+  grantedAt       DateTime  @default(now()) @map("granted_at")
+  /// Para acessos temporários
+  expiresAt       DateTime? @map("expires_at")
+  isActive        Boolean   @default(true) @map("is_active")
+
+  @@unique([userId, companyId])
+  @@map("user_company_access")
 }
 
-model BankStatement {
-  id           String            @id @default(uuid())
-  companyId    String            @map("company_id")
-  company      Company           @relation(fields: [companyId], references: [id])
-  importedAt   DateTime          @default(now()) @map("imported_at")
-  hash         String            @unique
-  fileName     String            @map("file_name")
-  transactions BankTransaction[]
+// ====================================
+// CONTABILIDADE E TRANSAÇÕES
+// ====================================
 
-  @@map("bank_statements")
-}
-
-model BankTransaction {
-  id          String        @id @default(uuid())
-  statementId String        @map("statement_id")
-  statement   BankStatement @relation(fields: [statementId], references: [id])
-  importLogId String        @map("import_log_id")
-  importLog   ImportLog     @relation(fields: [importLogId], references: [id])
-  date        DateTime
-  description String
-  amount      Decimal
-  accountId   String?       @map("account_id") // Opcional - pode não estar classificada
-  account     AccountPlan?  @relation(fields: [accountId], references: [id])
-  createdAt   DateTime      @default(now()) @map("created_at")
-
-  @@map("bank_transactions")
-}
-
-model AccountPlan {
-  id         String   @id @default(uuid())
-  companyId  String   @map("company_id")
-  company    Company  @relation(fields: [companyId], references: [id])
-  name       String
-  type       String // "receita", "despesa", "ativo", "passivo"
-  dreGroupId String   @map("dre_group_id")
-  dreGroup   DREGroup @relation(fields: [dreGroupId], references: [id])
-
-  bankTransactions BankTransaction[]
-
-  @@map("account_plan")
-}
-
+/// Grupos do Demonstrativo de Resultado
+///
+/// Organiza as contas contábeis em grupos para montagem da DRE.
+///
+/// Exemplos:
+/// - Receita Bruta (order: 1, type: receita)
+/// - Deduções da Receita (order: 2, type: despesa)
+/// - Custo dos Produtos Vendidos (order: 3, type: despesa)
+/// - Despesas Administrativas (order: 4, type: despesa)
 model DREGroup {
   id       String        @id @default(uuid())
-  name     String
-  order    Int
-  type     String // "receita", "despesa", "resultado"
+  /// Nome do grupo (ex: "Receita Bruta")
+  name     String        @unique
+  /// Ordem de exibição na DRE
+  order    Int           @unique
+  /// 'receita', 'despesa', 'resultado'
+  type     String
+  /// Contas que pertencem a este grupo
   accounts AccountPlan[]
 
   @@map("dre_group")
 }
 
-model DRE {
-  id          String   @id @default(uuid())
-  companyId   String   @map("company_id")
-  company     Company  @relation(fields: [companyId], references: [id])
-  periodStart DateTime @map("period_start")
-  periodEnd   DateTime @map("period_end")
-  data        Json // Dados calculados da DRE
-  generatedAt DateTime @default(now()) @map("generated_at")
+/// Plano de Contas
+///
+/// Define as contas contábeis específicas de cada empresa.
+/// Cada empresa tem seu próprio plano de contas.
+///
+/// Exemplos:
+/// - "Vendas de Software" (type: receita, dreGroup: Receita Bruta)
+/// - "Salários e Encargos" (type: despesa, dreGroup: Despesas Administrativas)
+/// - "Banco Conta Corrente" (type: ativo, dreGroup: null)
+///
+/// Hierarquia: Permite contas pai/filho para organização
+model AccountPlan {
+  id        String  @id @default(uuid())
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  /// Nome da conta (ex: "Salários e Encargos")
+  name String
+  /// Código contábil opcional (ex: "3.1.01.001")
+  code String?
+  /// 'receita', 'despesa', 'ativo', 'passivo'
+  type String
+
+  /// Vinculação com DRE (só para contas de resultado)
+  dreGroupId String?   @map("dre_group_id")
+  dreGroup   DREGroup? @relation(fields: [dreGroupId], references: [id])
+
+  /// Hierarquia de contas (conta pai/filho)
+  parentAccountId String?       @map("parent_account_id")
+  parentAccount   AccountPlan?  @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
+  childAccounts   AccountPlan[] @relation("AccountHierarchy")
+
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// Transações classificadas nesta conta
+  bankTransactions BankTransaction[]
+
+  /// Código único por empresa
+  @@unique([companyId, code])
+  @@map("account_plan")
+}
+
+/// Log de Importações
+///
+/// Registra cada importação de extrato bancário realizada.
+/// Usado para:
+/// - Evitar importações duplicadas (via hash)
+/// - Auditoria de importações
+/// - Controle de status de processamento
+/// - Estatísticas de uso
+model ImportLog {
+  id        String  @id @default(uuid())
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String  @map("user_id")
+  user      User    @relation(fields: [userId], references: [id])
+
+  /// Nome original do arquivo
+  fileName String @map("file_name")
+  /// Tamanho em bytes
+  fileSize Int?   @map("file_size")
+  /// Hash para evitar duplicatas
+  hash     String @unique
+
+  /// 'processing', 'completed', 'error'
+  status            String  @default("completed")
+  /// Erro se houver
+  errorMessage      String? @map("error_message")
+  /// Quantas transações foram importadas
+  transactionsCount Int     @default(0) @map("transactions_count")
+
+  importedAt DateTime @default(now()) @map("imported_at")
+
+  /// Transações criadas por esta importação
+  transactions BankTransaction[]
+
+  @@map("import_logs")
+}
+
+/// Extrato Bancário
+///
+/// Representa um arquivo de extrato bancário importado (OFX, CSV, etc).
+/// Um extrato pode conter múltiplas transações.
+///
+/// O hash evita importar o mesmo arquivo duas vezes.
+model BankStatement {
+  id        String  @id @default(uuid())
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Hash do arquivo para evitar duplicatas
+  hash     String @unique
+  /// Nome do arquivo original
+  fileName String @map("file_name")
+
+  /// Número da conta (extraído do OFX)
+  accountNumber String?   @map("account_number")
+  /// Nome do banco (extraído do OFX)
+  bankName      String?   @map("bank_name")
+  /// Início do período
+  periodStart   DateTime? @map("period_start")
+  /// Fim do período
+  periodEnd     DateTime? @map("period_end")
+
+  importedAt DateTime @default(now()) @map("imported_at")
+
+  /// Transações deste extrato
+  transactions BankTransaction[]
+
+  @@map("bank_statements")
+}
+
+/// Transação Bancária
+///
+/// Representa uma movimentação bancária individual.
+///
+/// Estados da transação:
+/// 1. Importada: existe mas não está classificada
+/// 2. Classificada: vinculada a uma conta contábil
+/// 3. Reconciliada: confirmada e validada
+///
+/// O valor positivo = entrada, negativo = saída
+///
+/// Hash de duplicata: calculado com data + valor + descrição + conta bancária
+/// para evitar importar a mesma transação de arquivos diferentes
+model BankTransaction {
+  id          String        @id @default(uuid())
+  statementId String        @map("statement_id")
+  statement   BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  importLogId String        @map("import_log_id")
+  importLog   ImportLog     @relation(fields: [importLogId], references: [id], onDelete: Cascade)
+
+  /// Data da transação
+  date            DateTime
+  /// Histórico/descrição da movimentação
+  description     String
+  /// Valor (positivo = entrada, negativo = saída)
+  amount          Decimal  @db.Decimal(15, 2)
+  /// 'debit', 'credit' (do arquivo OFX)
+  transactionType String?  @map("transaction_type")
+  /// Número do documento
+  documentNumber  String?  @map("document_number")
+
+  /// Hash único da transação para evitar duplicatas
+  /// Calculado: MD5(date + amount + description + account_number)
+  transactionHash String @unique @map("transaction_hash")
+
+  /// Conta do plano de contas
+  accountId          String?      @map("account_id")
+  account            AccountPlan? @relation(fields: [accountId], references: [id])
+  /// Quem classificou
+  classifiedByUserId String?      @map("classified_by_user_id")
+  classifiedBy       User?        @relation("ClassifiedBy", fields: [classifiedByUserId], references: [id])
+  /// Quando foi classificada
+  classifiedAt       DateTime?    @map("classified_at")
+  /// Observações do usuário
+  notes              String?
+
+  /// true = já tem conta vinculada
+  isClassified Boolean @default(false) @map("is_classified")
+  /// true = validada/confirmada
+  isReconciled Boolean @default(false) @map("is_reconciled")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([date])
+  @@index([statementId])
+  @@index([isClassified])
+  @@index([transactionHash])
+  @@map("bank_transactions")
+}
+
+/// Demonstrativo de Resultado do Exercício
+///
+/// Armazena DREs geradas para períodos específicos.
+///
+/// O campo 'data' contém o JSON com a estrutura da DRE:
+/// {
+///   "receita_bruta": 100000.00,
+///   "deducoes": 5000.00,
+///   "receita_liquida": 95000.00,
+///   "despesas_administrativas": 30000.00,
+///   "lucro_operacional": 65000.00,
+///   "receitas_financeiras": 1000.00,
+///   "lucro_liquido": 66000.00
+/// }
+///
+/// Suporta versionamento para reprocessamento.
+model DRE {
+  id        String  @id @default(uuid())
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Ex: 2024-01-01
+  periodStart DateTime @map("period_start")
+  /// Ex: 2024-01-31
+  periodEnd   DateTime @map("period_end")
+
+  /// Resultado calculado (estrutura JSON com totais por grupo)
+  data Json
+
+  /// Quem gerou esta DRE
+  generatedByUserId String?  @map("generated_by_user_id")
+  generatedBy       User?    @relation("GeneratedBy", fields: [generatedByUserId], references: [id])
+  generatedAt       DateTime @default(now()) @map("generated_at")
+  /// Para reprocessamento/correções
+  version           Int      @default(1)
+
+  @@unique([companyId, periodStart, periodEnd, version])
   @@map("dre")
 }
 
+/// Log de Auditoria
+///
+/// Registra todas as ações importantes realizadas no sistema.
+///
+/// Ações típicas:
+/// - CREATE: Criação de usuário, empresa, conta
+/// - UPDATE: Alteração de dados
+/// - DELETE: Exclusão de registros
+/// - IMPORT: Importação de extratos
+/// - EXPORT: Exportação de relatórios
+/// - LOGIN: Login no sistema
+///
+/// Essencial para compliance e auditoria contábil.
 model AuditLog {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id])
-  action    String
-  entity    String
-  entityId  String   @map("entity_id")
-  details   Json? // Detalhes adicionais da ação
+  /// NULL = ação global, valor = ação específica da empresa
+  companyId String?  @map("company_id")
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  /// 'CREATE', 'UPDATE', 'DELETE', 'IMPORT', 'EXPORT', 'LOGIN'
+  action   String
+  /// 'User', 'Company', 'Transaction', 'DRE', 'AccountPlan'
+  entity   String
+  /// ID do registro afetado
+  entityId String @map("entity_id")
+
+  /// Dados antes/depois da alteração, parâmetros da ação
+  details   Json?
+  /// IP do usuário
+  ipAddress String? @map("ip_address")
+  /// Navegador/dispositivo
+  userAgent String? @map("user_agent")
+
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([userId])
+  @@index([companyId])
+  @@index([createdAt])
+  @@index([action])
   @@map("audit_log")
 }
+
+// ====================================
+// RESUMO DOS PERFIS DE USUÁRIO
+// ====================================
+
+/// PERFIS DE USUÁRIO DEFINITIVOS:
+///
+/// SISTEMA SIMPLIFICADO - 2 ROLES × 2 TYPES = 4 COMBINAÇÕES:
+///
+/// 1. **admin + accountingFirm** (Dono do Escritório)
+///    - TEM accountingFirmId (obrigatório)
+///    - NÃO tem companyId
+///    - canManageUsers: true
+///    - canCreateCompanies: true
+///    - Acesso: Todas as empresas do escritório + gestão completa
+///
+/// 2. **operator + accountingFirm** (Contador Funcionário)
+///    - TEM accountingFirmId (obrigatório)
+///    - NÃO tem companyId
+///    - canManageUsers: false
+///    - canCreateCompanies: false
+///    - Acesso: Empresas específicas via UserCompanyAccess
+///
+/// 3. **admin + company** (Dono/Gerente da Empresa)
+///    - NÃO tem accountingFirmId
+///    - TEM companyId (obrigatório)
+///    - canManageUsers: true (para sua empresa)
+///    - canCreateCompanies: false
+///    - Acesso: Sua empresa + gestão de usuários internos
+///
+/// 4. **operator + company** (Funcionário da Empresa)
+///    - NÃO tem accountingFirmId
+///    - TEM companyId (obrigatório)
+///    - canManageUsers: false
+///    - canCreateCompanies: false
+///    - Acesso: Operacional limitado à sua empresa
+///
+/// CASOS DE USO COBERTOS:
+///
+/// ✅ Contador autônomo: admin + accountingFirm (cria AccountingFirm com isAutonomous=true)
+/// ✅ Escritório grande: admin + accountingFirm + vários operator + accountingFirm
+/// ✅ Empresa sem contador: admin + company + operator + company (funcionários)
+/// ✅ Empresa com contador: accountingFirmId preenchido + acesso via UserCompanyAccess
+/// ✅ Controle granular mas simples de entender
+///
+/// REGRAS DE VALIDAÇÃO:
+///
+/// - type = "accountingFirm": accountingFirmId OBRIGATÓRIO + companyId NULL
+/// - type = "company": companyId OBRIGATÓRIO + accountingFirmId NULL
+/// - admin: pode ter canManageUsers e canCreateCompanies = true
+/// - operator: sempre canManageUsers = false, canCreateCompanies = false
+///
+/// EXEMPLO DE CONSTANTES NO CÓDIGO:
+///
+/// ```typescript
+/// export const USER_ROLES = {
+///   ADMIN: 'admin',
+///   OPERATOR: 'operator'
+/// } as const;
+///
+/// export const USER_TYPES = {
+///   ACCOUNTING_FIRM: 'accountingFirm',
+///   COMPANY: 'company'
+/// } as const;
+///
+/// // Validação simplificada
+/// export const validateUser = (user: User) => {
+///   if (user.type === 'accountingFirm' && !user.accountingFirmId) {
+///     throw new Error('Usuário de escritório deve ter accountingFirmId');
+///   }
+///
+///   if (user.type === 'company' && !user.companyId) {
+///     throw new Error('Usuário de empresa deve ter companyId');
+///   }
+///
+///   if (user.role === 'operator' && user.canManageUsers) {
+///     throw new Error('Operator não pode gerenciar usuários');
+///   }
+/// };
+/// ```

@@ -103,19 +103,32 @@ export const action: ActionFunction = async ({ request }) => {
     const company = await prismaClient.company.findFirst({
       where: {
         id: companyId,
-        OR: [
-          { userId: user.id },
-          { accountingFirmId: user.accountingFirmId }
-        ]
+        accountingFirmId: user.accountingFirmId,
+        accountingFirm: {
+          users: {
+            some: {
+              id: user.id
+            }
+          }
+        }
       }
     });
-
+    // Validação adicional baseada no tipo de usuário
     if (!company) {
-      return json({
-        success: false,
-        error: "Empresa não encontrada ou sem permissão"
-      }, { status: 403 });
+      throw new Error("Empresa não encontrada ou acesso negado");
     }
+
+    const userCompanyGrants = prismaClient.userCompanyAccess.findFirst({
+      where: {
+        userId: user.id
+      }
+    })
+
+    if (!userCompanyGrants) {
+      throw new Error("Acesso negado");
+    }
+
+    // FUTURE FEATURE check the permission UserCompanyAccess.permissions
 
     const fileContent = await file.text();
     const fileHash = generateFileHash(fileContent);

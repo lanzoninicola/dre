@@ -2,6 +2,7 @@
 import { Calculator, Sparkles, Menu, Bell, User, LogOut } from "lucide-react";
 import { useState } from "react";
 import { GradientButton } from "./gradient-button";
+import { Link } from "@remix-run/react";
 
 interface NavbarProps {
   user?: {
@@ -52,10 +53,11 @@ export function Navbar({ user }: NavbarProps) {
                     <p className="text-gray-500">{user.role}</p>
                   </div>
                 </div>
-
-                <GradientButton variant="ghost" size="sm">
-                  <LogOut className="w-4 h-4" />
-                </GradientButton>
+                <Link to="/logout" >
+                  <GradientButton variant="ghost" size="sm">
+                    <LogOut className="w-4 h-4" />
+                  </GradientButton>
+                </Link>
               </>
             )}
           </div>
@@ -88,10 +90,12 @@ export function Navbar({ user }: NavbarProps) {
                   </div>
                 </div>
 
-                <GradientButton variant="ghost" size="sm" className="w-full justify-start">
-                  <LogOut className="w-4 h-4" />
-                  Sair
-                </GradientButton>
+                <Link to="/logout" >
+                  <GradientButton variant="ghost" size="sm" className="w-full justify-start">
+                    <LogOut className="w-4 h-4" />
+                    Sair
+                  </GradientButton>
+                </Link>
               </>
             )}
           </div>

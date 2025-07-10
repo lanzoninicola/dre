@@ -244,8 +244,14 @@ export const action: ActionFunction = async ({ request }) => {
 
         // Criar transações bancárias
         const bankTransactions = await Promise.all(
-          selectedTransactions.map(transaction =>
-            tx.bankTransaction.create({
+          selectedTransactions.map(transaction => {
+            // Gerar hash único para a transação
+            const transactionHash = crypto
+              .createHash('md5')
+              .update(`${transaction.id}-${transaction.date.toISOString()}-${transaction.amount}-${transaction.description}`)
+              .digest('hex');
+
+            return tx.bankTransaction.create({
               data: {
                 id: crypto.randomUUID(),
                 statementId: bankStatement.id,
@@ -253,21 +259,28 @@ export const action: ActionFunction = async ({ request }) => {
                 date: transaction.date,
                 description: transaction.description,
                 amount: transaction.amount,
-                createdAt: new Date(),
-                // Campos opcionais do OFX
-                memo: transaction.memo,
-                checkNumber: transaction.checkNumber,
-                referenceNumber: transaction.referenceNumber,
+                transactionHash,
                 transactionType: transaction.type,
+                createdAt: new Date(),
+                // Campos de classificação com valores padrão
+                isClassified: false,
+                isReconciled: false,
+                // Campos opcionais que existem no schema
+                documentNumber: transaction.checkNumber || null,
+                notes: transaction.memo || null,
+                // Remover campos que não existem no schema:
+                // - referenceNumber (não existe)
+                // - memo (não existe, usar notes)
+                // - checkNumber (não existe, usar documentNumber)
               }
-            })
-          )
+            });
+          })
         );
 
         // Atualizar contagem no import log
         await tx.importLog.update({
           where: { id: importLog.id },
-          data: { transactionCount: bankTransactions.length }
+          data: { transactionsCount: bankTransactions.length } // ← Corrigido: transactionsCount (com S)
         });
 
         // Registrar auditoria

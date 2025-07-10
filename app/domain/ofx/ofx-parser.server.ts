@@ -6,9 +6,18 @@ import {
   ImportReport,
 } from "./ofx.types";
 
+// Função de debug para logging
+function debugLog(message: string, data?: any) {
+  console.log(`[OFX Parser] ${message}`, data || "");
+}
+
 export function parseOFX(ofxContent: string): OFXParseResult {
+  debugLog("Iniciando parse do OFX", { contentLength: ofxContent.length });
+
   try {
     const lines = ofxContent.split("\n");
+    debugLog("Arquivo dividido em linhas", { totalLines: lines.length });
+
     const transactions: OFXTransaction[] = [];
     const warnings: string[] = [];
 
@@ -27,12 +36,14 @@ export function parseOFX(ofxContent: string): OFXParseResult {
 
       // Detecta início da seção da conta bancária
       if (line.includes("<BANKACCTFROM>")) {
+        debugLog(`Linha ${i + 1}: Início da seção da conta`);
         inBankAccount = true;
         continue;
       }
 
       // Detecta fim da seção da conta bancária
       if (line.includes("</BANKACCTFROM>")) {
+        debugLog(`Linha ${i + 1}: Fim da seção da conta`);
         inBankAccount = false;
         continue;
       }
@@ -41,12 +52,16 @@ export function parseOFX(ofxContent: string): OFXParseResult {
       if (inBankAccount) {
         if (line.includes("<ACCTID>")) {
           accountId = extractValue(line, "ACCTID");
+          debugLog(`Linha ${i + 1}: ACCTID encontrado`, { accountId });
         } else if (line.includes("<BANKID>")) {
           bankId = extractValue(line, "BANKID");
+          debugLog(`Linha ${i + 1}: BANKID encontrado`, { bankId });
         } else if (line.includes("<ACCTTYPE>")) {
           accountType = extractValue(line, "ACCTTYPE");
+          debugLog(`Linha ${i + 1}: ACCTTYPE encontrado`, { accountType });
         } else if (line.includes("<ROUTINGNUM>")) {
           routingNumber = extractValue(line, "ROUTINGNUM");
+          debugLog(`Linha ${i + 1}: ROUTINGNUM encontrado`, { routingNumber });
         }
         continue;
       }
@@ -56,11 +71,13 @@ export function parseOFX(ofxContent: string): OFXParseResult {
         const balanceStr = extractValue(line, "BALAMT");
         if (balanceStr) {
           balanceAmount = parseFloat(balanceStr);
+          debugLog(`Linha ${i + 1}: Saldo encontrado`, { balanceAmount });
         }
       } else if (line.includes("<DTASOF>")) {
         const dateStr = extractValue(line, "DTASOF");
         if (dateStr) {
           balanceDate = parseOFXDate(dateStr);
+          debugLog(`Linha ${i + 1}: Data do saldo encontrada`, { balanceDate });
         }
       }
 
@@ -68,15 +85,23 @@ export function parseOFX(ofxContent: string): OFXParseResult {
       else if (line.includes("<STMTTRN>")) {
         inTransaction = true;
         currentTransaction = {};
+        debugLog(`Linha ${i + 1}: Início de transação`);
       } else if (line.includes("</STMTTRN>") && inTransaction) {
         if (isValidTransaction(currentTransaction)) {
           transactions.push(currentTransaction as OFXTransaction);
+          debugLog(`Linha ${i + 1}: Transação válida adicionada`, {
+            transactionId: currentTransaction.id,
+            amount: currentTransaction.amount,
+          });
         } else {
           warnings.push(
             `Transação inválida na linha ${
               i + 1
             }: dados incompletos - ${JSON.stringify(currentTransaction)}`
           );
+          debugLog(`Linha ${i + 1}: Transação inválida`, {
+            currentTransaction,
+          });
         }
         inTransaction = false;
         currentTransaction = {};
@@ -86,7 +111,7 @@ export function parseOFX(ofxContent: string): OFXParseResult {
     }
 
     // Debug: Log dos dados extraídos
-    console.log("Dados extraídos do OFX:", {
+    debugLog("Dados extraídos do OFX", {
       accountId,
       bankId,
       accountType,
@@ -98,13 +123,16 @@ export function parseOFX(ofxContent: string): OFXParseResult {
 
     // Validações básicas
     if (!accountId) {
+      const errorMsg = `ID da conta não encontrado no arquivo OFX. Dados encontrados: bankId=${bankId}, accountType=${accountType}. Verificar estrutura do arquivo.`;
+      debugLog("Erro: Account ID não encontrado", { bankId, accountType });
       return {
         success: false,
-        error: `ID da conta não encontrado no arquivo OFX. Dados encontrados: bankId=${bankId}, accountType=${accountType}. Verificar estrutura do arquivo.`,
+        error: errorMsg,
       };
     }
 
     if (transactions.length === 0) {
+      debugLog("Erro: Nenhuma transação encontrada");
       return {
         success: false,
         error: "Nenhuma transação encontrada no arquivo OFX",
@@ -123,13 +151,21 @@ export function parseOFX(ofxContent: string): OFXParseResult {
       ),
     };
 
+    debugLog("Parse concluído com sucesso", {
+      accountId: data.accountId,
+      transactionsCount: data.transactions.length,
+      warnings: warnings.length,
+    });
+
     return {
       success: true,
       data,
       warnings: warnings.length > 0 ? warnings : undefined,
     };
   } catch (error) {
-    console.error("Erro no parseOFX:", error);
+    debugLog("Erro no parseOFX", {
+      error: error instanceof Error ? error.message : error,
+    });
     return {
       success: false,
       error: `Erro ao processar arquivo OFX: ${

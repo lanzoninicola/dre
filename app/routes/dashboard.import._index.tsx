@@ -33,7 +33,6 @@ export const loader: LoaderFunction = async ({ request }) => {
         { userId: user.id },
         { companyId: user.company?.id }
       ]
-
     },
     include: {
       company: true,
@@ -91,10 +90,25 @@ export const action: ActionFunction = async ({ request }) => {
     const companyId = formData.get("companyId") as string;
     const intent = formData.get("intent") as string;
 
+    console.log("Action chamada com:", {
+      intent,
+      companyId,
+      fileSize: file?.size || 0,
+      fileName: file?.name || "sem arquivo"
+    });
+
     if (!file || !companyId) {
       return json({
         success: false,
         error: "Arquivo e empresa são obrigatórios"
+      }, { status: 400 });
+    }
+
+    // Verificar se o arquivo tem conteúdo
+    if (file.size === 0) {
+      return json({
+        success: false,
+        error: "Arquivo vazio. Por favor, selecione um arquivo válido."
       }, { status: 400 });
     }
 
@@ -112,36 +126,41 @@ export const action: ActionFunction = async ({ request }) => {
         }
       }
     });
-    // Validação adicional baseada no tipo de usuário
+
     if (!company) {
       throw new Error("Empresa não encontrada ou acesso negado");
     }
 
-    const userCompanyGrants = prismaClient.userCompanyAccess.findFirst({
+    const userCompanyGrants = await prismaClient.userCompanyAccess.findFirst({
       where: {
         userId: user.id
       }
-    })
+    });
 
     if (!userCompanyGrants) {
       throw new Error("Acesso negado");
     }
 
-    // FUTURE FEATURE check the permission UserCompanyAccess.permissions
-
     const fileContent = await file.text();
-    const fileHash = generateFileHash(fileContent);
-
-    // Verificar duplicidade
-    const existingImport = await prismaClient.importLog.findFirst({
-      where: { hash: fileHash, companyId }
+    console.log("Conteúdo do arquivo obtido:", {
+      contentLength: fileContent.length,
+      firstChars: fileContent.substring(0, 100)
     });
 
-    if (existingImport) {
-      return json({
-        success: false,
-        error: "Este arquivo já foi importado anteriormente"
-      }, { status: 409 });
+    const fileHash = generateFileHash(fileContent);
+
+    // Verificar duplicidade apenas no intent confirm
+    if (intent === "confirm") {
+      const existingImport = await prismaClient.importLog.findFirst({
+        where: { hash: fileHash, companyId }
+      });
+
+      if (existingImport) {
+        return json({
+          success: false,
+          error: "Este arquivo já foi importado anteriormente"
+        }, { status: 409 });
+      }
     }
 
     // Parse do arquivo OFX
@@ -177,6 +196,7 @@ export const action: ActionFunction = async ({ request }) => {
           })),
           report,
           fileHash,
+          fileContent, // ← ADICIONAR: Preservar conteúdo do arquivo
           accountInfo: {
             accountId: ofxData.accountId,
             bankId: ofxData.bankId,
@@ -294,10 +314,9 @@ export const action: ActionFunction = async ({ request }) => {
 };
 
 // ====================================
-// COMPONENTES
+// COMPONENTES (mantidos iguais)
 // ====================================
 
-// Componente para cards de estatísticas
 function StatsCards({ stats, companiesCount }: { stats: any, companiesCount: number }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -350,9 +369,6 @@ function StatsCards({ stats, companiesCount }: { stats: any, companiesCount: num
   );
 }
 
-
-
-// Componente para área de upload
 function FileUploadArea({
   dragActive,
   onDragEvents,
@@ -425,7 +441,6 @@ function FileUploadArea({
   );
 }
 
-// Componente para loading
 function LoadingState({ message }: { message: string }) {
   return (
     <div className="flex items-center justify-center py-8">
@@ -435,7 +450,6 @@ function LoadingState({ message }: { message: string }) {
   );
 }
 
-// Componente para sidebar de histórico
 function ImportHistorySidebar({ recentImports }: { recentImports: any[] }) {
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('pt-BR');
@@ -521,8 +535,11 @@ export default function ImportOFXEnhanced() {
   const [selectedCompany, setSelectedCompany] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [validationError, setValidationError] = useState("");
-  const [previewData, setPreviewData] = useState(null);
+  const [previewData, setPreviewData] = useState<any>(null);
   const [step, setStep] = useState<'idle' | 'parsing' | 'preview' | 'importing' | 'success'>('idle');
+
+  // ← NOVO: Estado para preservar o arquivo
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
 
   const companyOptions = companies.map(company => ({
     value: company.id,
@@ -565,6 +582,8 @@ export default function ImportOFXEnhanced() {
       return;
     }
 
+    // ← NOVO: Salvar o arquivo no estado
+    setCurrentFile(file);
     setStep('parsing');
 
     const formData = new FormData();
@@ -594,12 +613,12 @@ export default function ImportOFXEnhanced() {
   };
 
   const handleImportConfirm = (selectedTransactionIds: string[]) => {
-    if (!previewData) return;
+    if (!previewData || !currentFile) return; // ← NOVO: Verificar se temos o arquivo
 
     setStep('importing');
 
     const formData = new FormData();
-    formData.append("file", fileInputRef.current?.files?.[0] || new Blob());
+    formData.append("file", currentFile); // ← NOVO: Usar o arquivo preservado
     formData.append("companyId", selectedCompany);
     formData.append("intent", "confirm");
     formData.append("selectedTransactionIds", JSON.stringify(selectedTransactionIds));
@@ -614,6 +633,7 @@ export default function ImportOFXEnhanced() {
     setStep('idle');
     setPreviewData(null);
     setValidationError('');
+    setCurrentFile(null); // ← NOVO: Limpar arquivo preservado
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }

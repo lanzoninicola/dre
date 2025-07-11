@@ -56,11 +56,11 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
               <Link to="/dashboard" className="hover:opacity-80 transition-opacity">
                 <div className="flex items-center gap-3">
 
-                  <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                  <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center">
                     <Calculator className="w-4 h-4 text-white" />
                   </div>
 
-                  <h1 className="text-xl font-semibold text-gray-900">
+                  <h1 className="text-md font-semibold text-gray-900">
                     FinanceFlow
                   </h1>
 
@@ -224,7 +224,7 @@ export function NavMain({ items }: NavMainProps) {
                     className="hover:opacity-80 transition-opacity flex items-center gap-2 w-full"
                   >
                     {item.icon && <item.icon size={16} />}
-                    <span>{item.label}</span>
+                    <span className="tracking-normal">{item.label}</span>
                   </Link>
                 </SidebarMenuButton>
               )}

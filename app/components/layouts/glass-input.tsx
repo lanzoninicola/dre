@@ -1,7 +1,7 @@
-// components/ui/GlassInput.tsx
+// app/components/layouts/glass-input.tsx
 import { InputHTMLAttributes, ReactNode } from "react";
-import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
+import { cn } from "~/lib/utils";
+import { Label } from "~/components/ui/label";
 
 interface GlassInputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -26,7 +26,7 @@ export function GlassInput({
   return (
     <div className="space-y-1">
       {label && (
-        <Label htmlFor={inputId} className="text-sm font-medium text-gray-700 ml-1">
+        <Label htmlFor={inputId} className="text-sm font-medium text-gray-700">
           {label}
         </Label>
       )}
@@ -41,10 +41,10 @@ export function GlassInput({
         <input
           id={inputId}
           className={cn(
-            "h-12 w-full border border-gray-200 rounded-xl bg-white/50 backdrop-blur-sm focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all duration-200",
-            icon && iconPosition === "left" ? "pl-10 pr-4" : "px-4",
+            "flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-colors",
+            icon && iconPosition === "left" ? "pl-10" : "",
             icon && iconPosition === "right" ? "pr-10" : "",
-            error && "border-red-300 focus:border-red-400 focus:ring-red-100",
+            error && "border-red-300 focus-visible:border-red-500 focus-visible:ring-red-500",
             className
           )}
           {...props}
@@ -58,11 +58,11 @@ export function GlassInput({
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 ml-1">{error}</p>
+        <p className="text-sm text-red-600">{error}</p>
       )}
 
       {helperText && !error && (
-        <p className="text-sm text-gray-500 ml-1">{helperText}</p>
+        <p className="text-sm text-gray-500">{helperText}</p>
       )}
     </div>
   );

@@ -6,7 +6,6 @@ import {
   FileText,
   AlertTriangle,
   CheckCircle,
-  XCircle,
   ArrowLeft,
   Download,
   Eye,
@@ -51,13 +50,11 @@ function formatDateSafe(date: string | Date | null | undefined): string {
     let dateObj: Date;
 
     if (typeof date === 'string') {
-      // Se for string, tenta parsear
       dateObj = new Date(date);
     } else {
       dateObj = date;
     }
 
-    // Verifica se a data é válida
     if (isNaN(dateObj.getTime())) {
       return 'Data inválida';
     }
@@ -84,74 +81,74 @@ function formatCurrency(amount: number): string {
 // Componente para o card de estatísticas do relatório
 function ReportStatsCard({ report }: { report: Report }) {
   return (
-    <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-6 mb-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+    <div className="card-default p-6 mb-8">
+      <h3 className="text-heading-3 mb-4 flex items-center">
         <FileText className="w-5 h-5 mr-2 text-indigo-600" />
         Resumo da Importação
       </h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-blue-50/80 backdrop-blur-sm rounded-xl p-4 border border-blue-200/50">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="card-stat">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                <FileText className="w-4 h-4 text-white" />
+              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                <FileText className="w-6 h-6 text-white" />
               </div>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-blue-800">Total</p>
-              <p className="text-lg font-bold text-blue-900">{report.totalTransactions}</p>
+            <div className="ml-4">
+              <p className="text-small">Total</p>
+              <p className="text-2xl font-semibold text-gray-900">{report.totalTransactions}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-green-50/80 backdrop-blur-sm rounded-xl p-4 border border-green-200/50">
+        <div className="card-stat">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-4 h-4 text-white" />
+              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-white" />
               </div>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-green-800">Únicas</p>
-              <p className="text-lg font-bold text-green-900">{report.uniqueTransactions}</p>
+            <div className="ml-4">
+              <p className="text-small">Únicas</p>
+              <p className="text-2xl font-semibold text-gray-900">{report.uniqueTransactions}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-yellow-50/80 backdrop-blur-sm rounded-xl p-4 border border-yellow-200/50">
+        <div className="card-stat">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="w-4 h-4 text-white" />
+              <div className="w-12 h-12 bg-yellow-600 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-white" />
               </div>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-yellow-800">Duplicadas</p>
-              <p className="text-lg font-bold text-yellow-900">{report.duplicatesFound}</p>
+            <div className="ml-4">
+              <p className="text-small">Duplicadas</p>
+              <p className="text-2xl font-semibold text-gray-900">{report.duplicatesFound}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-purple-50/80 backdrop-blur-sm rounded-xl p-4 border border-purple-200/50">
+        <div className="card-stat">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-4 h-4 text-white" />
+              <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-white" />
               </div>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-purple-800">Total</p>
-              <p className="text-lg font-bold text-purple-900">{formatCurrency(report.totalAmount)}</p>
+            <div className="ml-4">
+              <p className="text-small">Total</p>
+              <p className="text-2xl font-semibold text-gray-900">{formatCurrency(report.totalAmount)}</p>
             </div>
           </div>
         </div>
       </div>
 
       {report.dateRange && (
-        <div className="mt-4 p-3 bg-gray-50/80 backdrop-blur-sm rounded-xl border border-gray-200/50">
-          <p className="text-sm text-gray-600">
-            <Calendar className="w-4 h-4 inline mr-1" />
+        <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <p className="text-sm text-gray-600 flex items-center">
+            <Calendar className="w-4 h-4 mr-2" />
             Período: {formatDateSafe(report.dateRange.start)} até {formatDateSafe(report.dateRange.end)}
           </p>
         </div>
@@ -171,8 +168,8 @@ function TransactionRow({
   onToggle: (id: string) => void;
 }) {
   return (
-    <tr className={`hover:bg-gray-50/50 transition-colors duration-200 ${isSelected ? 'bg-indigo-50/50' : ''}`}>
-      <td className="px-4 py-3">
+    <tr className={`hover:bg-gray-50 ${isSelected ? 'bg-indigo-50' : ''}`}>
+      <td className="py-3 px-6">
         <input
           type="checkbox"
           checked={isSelected}
@@ -180,22 +177,26 @@ function TransactionRow({
           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
         />
       </td>
-      <td className="px-4 py-3 text-sm text-gray-900">
+      <td className="py-3 px-6 text-body">
         {formatDateSafe(transaction.date)}
       </td>
-      <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
-        {transaction.description}
+      <td className="py-3 px-6 text-body max-w-xs">
+        <div className="truncate">
+          {transaction.description}
+        </div>
       </td>
-      <td className="px-4 py-3 text-sm text-gray-900">
+      <td className="py-3 px-6 text-right">
         <span className={`font-medium ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
           {formatCurrency(transaction.amount)}
         </span>
       </td>
-      <td className="px-4 py-3 text-sm text-gray-500">
+      <td className="py-3 px-6 text-body">
         {transaction.type || '-'}
       </td>
-      <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
-        {transaction.memo || '-'}
+      <td className="py-3 px-6 text-body max-w-xs">
+        <div className="truncate">
+          {transaction.memo || '-'}
+        </div>
       </td>
     </tr>
   );
@@ -254,28 +255,25 @@ export function OFXPreview({
     };
   }, [transactions, selectedTransactions]);
 
-  return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      {/* Background decorativo */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-32 w-80 h-80 bg-gradient-to-br from-indigo-400/20 to-purple-600/20 rounded-full animate-pulse-decoration"></div>
-        <div className="absolute -bottom-40 -left-32 w-80 h-80 bg-gradient-to-tr from-purple-400/20 to-pink-600/20 rounded-full animate-pulse-decoration"></div>
-      </div>
+  const isAllSelected = selectedTransactions.size === transactions.length;
+  const isIndeterminate = selectedTransactions.size > 0 && selectedTransactions.size < transactions.length;
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  return (
+    <div className="bg-gray-50 min-h-screen">
+      <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Preview da Importação</h1>
-              <p className="mt-2 text-gray-600">
+              <h1 className="text-heading-1">Preview da Importação</h1>
+              <p className="text-muted mt-2">
                 Revise as transações antes de confirmar a importação
               </p>
             </div>
             <button
               onClick={onCancel}
               disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white/60 backdrop-blur-sm hover:bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50"
+              className="btn-secondary flex items-center"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
@@ -287,16 +285,16 @@ export function OFXPreview({
         <ReportStatsCard report={report} />
 
         {/* Transações */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200/50">
+        <div className="card-default">
+          <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
+              <h3 className="text-heading-3">
                 Transações ({transactions.length})
               </h3>
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => setShowAll(!showAll)}
-                  className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                  className="btn-ghost flex items-center text-sm"
                 >
                   {showAll ? (
                     <>
@@ -310,7 +308,7 @@ export function OFXPreview({
                     </>
                   )}
                 </button>
-                <span className="text-sm text-gray-500">
+                <span className="text-small">
                   {selectedStats.count} selecionadas - {formatCurrency(selectedStats.totalAmount)}
                 </span>
               </div>
@@ -318,35 +316,38 @@ export function OFXPreview({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200/50">
-              <thead className="bg-gray-50/50">
+            <table className="w-full">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="py-3 px-6 text-left text-small font-medium text-gray-700">
                     <input
                       type="checkbox"
-                      checked={selectedTransactions.size === transactions.length}
+                      checked={isAllSelected}
+                      ref={(input) => {
+                        if (input) input.indeterminate = isIndeterminate;
+                      }}
                       onChange={toggleAll}
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="py-3 px-6 text-left text-small font-medium text-gray-700">
                     Data
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="py-3 px-6 text-left text-small font-medium text-gray-700">
                     Descrição
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="py-3 px-6 text-right text-small font-medium text-gray-700">
                     Valor
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="py-3 px-6 text-left text-small font-medium text-gray-700">
                     Tipo
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="py-3 px-6 text-left text-small font-medium text-gray-700">
                     Memo
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white/30 divide-y divide-gray-200/50">
+              <tbody className="divide-y divide-gray-200">
                 {displayTransactions.map((transaction) => (
                   <TransactionRow
                     key={transaction.id}
@@ -360,8 +361,8 @@ export function OFXPreview({
           </div>
 
           {!showAll && transactions.length > 10 && (
-            <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-200/50 text-center">
-              <p className="text-sm text-gray-500">
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 text-center">
+              <p className="text-small">
                 Mostrando 10 de {transactions.length} transações.{' '}
                 <button
                   onClick={() => setShowAll(true)}
@@ -379,14 +380,14 @@ export function OFXPreview({
           <button
             onClick={onCancel}
             disabled={loading}
-            className="px-6 py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white/60 backdrop-blur-sm hover:bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50"
+            className="btn-secondary"
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
             disabled={loading || selectedTransactions.size === 0}
-            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="btn-primary flex items-center"
           >
             {loading ? (
               <>
@@ -401,7 +402,7 @@ export function OFXPreview({
             )}
           </button>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

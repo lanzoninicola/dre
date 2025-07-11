@@ -1,4 +1,4 @@
-// components/ui/StatCard.tsx
+// app/components/layouts/stat-card.tsx
 import { ReactNode } from "react";
 import { GlassCard } from "./glass-card";
 import { cn } from "~/lib/utils";
@@ -12,24 +12,32 @@ interface StatCardProps {
     value: number;
     isPositive: boolean;
   };
-  color?: "indigo" | "purple" | "green" | "yellow" | "red";
+  color?: "default" | "green" | "red" | "blue" | "yellow";
 }
 
-export function StatCard({ title, value, subtitle, icon, trend, color = "indigo" }: StatCardProps) {
-  const colorClasses = {
-    indigo: "text-indigo-600",
-    purple: "text-purple-600",
-    green: "text-green-600",
-    yellow: "text-yellow-600",
-    red: "text-red-600"
+export function StatCard({
+  title,
+  value,
+  subtitle,
+  icon,
+  trend,
+  color = "default"
+}: StatCardProps) {
+  // Only apply color to icons and trend indicators - keep main content neutral
+  const iconColors = {
+    default: "text-gray-500 bg-gray-100",
+    green: "text-green-600 bg-green-100",
+    red: "text-red-600 bg-red-100",
+    blue: "text-blue-600 bg-blue-100",
+    yellow: "text-yellow-600 bg-yellow-100"
   };
 
   return (
     <GlassCard variant="stat" hover>
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm text-gray-600 mb-1">{title}</p>
-          <p className={cn("text-2xl font-bold mb-1", colorClasses[color])}>
+          <p className="text-sm font-medium text-gray-600 mb-2">{title}</p>
+          <p className="text-2xl font-semibold text-gray-900 mb-1">
             {value}
           </p>
           {subtitle && (
@@ -38,16 +46,17 @@ export function StatCard({ title, value, subtitle, icon, trend, color = "indigo"
         </div>
 
         {icon && (
-          <div className={cn("p-2 rounded-lg", `bg-${color}-100`)}>
-            <div className={colorClasses[color]}>
-              {icon}
-            </div>
+          <div className={cn(
+            "p-2 rounded-lg",
+            iconColors[color]
+          )}>
+            {icon}
           </div>
         )}
       </div>
 
       {trend && (
-        <div className="mt-3 pt-3 border-t border-gray-200/50">
+        <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex items-center gap-1">
             <span className={cn(
               "text-sm font-medium",

@@ -17,6 +17,7 @@ import {
 import { PageLayout } from "~/components/layouts/page-layout";
 import { requireUser } from "~/domain/auth/auth.server";
 import { prisma } from "~/infrastructure/prisma/client.server";
+import formatCurrency from "~/utils/format-currency";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUser(request);
@@ -151,12 +152,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function TransacoesIndex() {
   const { companies, user } = useLoaderData<typeof loader>();
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
+
 
   return (
 

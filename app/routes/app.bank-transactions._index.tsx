@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { requireUser } from "~/domain/auth/auth.server";
 import { prisma } from "~/infrastructure/prisma/client.server";
+import formatCurrency from "~/utils/format-currency";
 
 // Função para buscar empresas básicas (rápido)
 async function getCompaniesForUser(user: any) {
@@ -325,12 +326,7 @@ function InitialLoadingState({ user, companiesCount, basicCompanies }: {
 
 // Componente das empresas carregadas
 function CompaniesSection({ companiesWithStats, user }: { companiesWithStats: any[], user: any }) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
+
 
   // Calcular resumo geral
   const summary = {

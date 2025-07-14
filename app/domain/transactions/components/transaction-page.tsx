@@ -20,9 +20,10 @@ import {
 } from 'lucide-react';
 import { AccountPlan, BankTransaction, Company, Pagination, TransactionFilters, User } from '../transactions.types';
 
-import { calculateTransactionStats, formatCurrency, getTransactionStatus } from '../transactions.utils';
+import { calculateTransactionStats, getTransactionStatus } from '../transactions.utils';
 import { useTableSelection, EnhancedColumnConfig, EnhancedDataTable } from './enhanced-data-table';
 import formatDate from '~/utils/format-date';
+import formatCurrency from '~/utils/format-currency';
 
 // Importar o componente de tabela melhorado
 

@@ -30,6 +30,11 @@ export const SIDEBAR_MENU_ITEMS: SidebarMenuItems = {
       href: "/app/bank-transactions",
     },
     {
+      label: "DRE",
+      icon: FileText,
+      href: "/app/dre",
+    },
+    {
       label: "Relatórios",
       icon: BarChart3,
       href: "/relatorios",

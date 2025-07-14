@@ -19,8 +19,8 @@
 - [x] ParseOFXFile
 - [x] PreventDuplicateImportByHash
 - [x] StoreTransactionsFromOFX
-- [ ] Visualizar transacoes
-- [ ] Vincular a transacao a uma conta da plano da conta
+- [x] Visualizar transacoes
+- [x] Vincular a transacao a uma conta da plano da conta
 
 ## 4. 💰 Plano de Contas e Vinculação ao DRE
 
@@ -31,7 +31,7 @@
 ## 5. 📈 Geração e Visualização de DRE
 
 - [ ] GenerateDREFromTransactions
-- [x] ListDREs
+- [ ] ListDREs
 - [ ] ExportDREToPDF
 
 ## 6. 📜 Auditoria

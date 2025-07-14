@@ -12,6 +12,7 @@ import {
   EyeOff
 } from "lucide-react";
 import formatDate from "~/utils/format-date";
+import formatCurrency from "~/utils/format-currency";
 
 interface Transaction {
   id: string;
@@ -45,13 +46,6 @@ interface OFXPreviewProps {
 
 
 
-// Função para formatar valor monetário
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(amount);
-}
 
 // Componente para o card de estatísticas do relatório
 function ReportStatsCard({ report }: { report: Report }) {

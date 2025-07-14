@@ -1,19 +1,23 @@
-import { createCookieSessionStorage, redirect } from "@remix-run/node";
+import { redirect } from "@remix-run/node";
+import { createCookieSessionStorage } from "@remix-run/node";
+import bcrypt from "bcryptjs";
 import prismaClient from "~/lib/prisma/client.server";
 
-const sessionSecret = process.env.SESSION_SECRET || "default_secret";
-export const storage = createCookieSessionStorage({
+const sessionSecret = process.env.SESSION_SECRET || "default-secret";
+
+const storage = createCookieSessionStorage({
   cookie: {
-    name: "session",
+    name: "auth_session",
+    secure: process.env.NODE_ENV === "production",
     secrets: [sessionSecret],
     sameSite: "lax",
     path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
     httpOnly: true,
-    secure: false,
   },
 });
 
-export async function createUserSession(userId, redirectTo) {
+export async function createUserSession(userId: string, redirectTo: string) {
   const session = await storage.getSession();
   session.set("userId", userId);
   return redirect(redirectTo, {
@@ -23,14 +27,12 @@ export async function createUserSession(userId, redirectTo) {
   });
 }
 
-export async function requireUser(request) {
+export async function getUserSession(request: Request) {
   const session = await storage.getSession(request.headers.get("Cookie"));
-  const userId = session.get("userId");
-  if (!userId) throw redirect("/login");
-  return await prismaClient.user.findUnique({ where: { id: userId } });
+  return session.get("userId");
 }
 
-export async function destroyUserSession(request) {
+export async function destroySession(request: Request) {
   const session = await storage.getSession(request.headers.get("Cookie"));
   return redirect("/login", {
     headers: {

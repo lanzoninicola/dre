@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff
 } from "lucide-react";
+import formatDate from "~/utils/format-date";
 
 interface Transaction {
   id: string;
@@ -42,33 +43,7 @@ interface OFXPreviewProps {
   loading?: boolean;
 }
 
-// Função para formatar data de forma segura
-function formatDateSafe(date: string | Date | null | undefined): string {
-  if (!date) return 'Data inválida';
 
-  try {
-    let dateObj: Date;
-
-    if (typeof date === 'string') {
-      dateObj = new Date(date);
-    } else {
-      dateObj = date;
-    }
-
-    if (isNaN(dateObj.getTime())) {
-      return 'Data inválida';
-    }
-
-    return dateObj.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  } catch (error) {
-    console.error('Erro ao formatar data:', error);
-    return 'Data inválida';
-  }
-}
 
 // Função para formatar valor monetário
 function formatCurrency(amount: number): string {
@@ -149,7 +124,7 @@ function ReportStatsCard({ report }: { report: Report }) {
         <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
           <p className="text-sm text-gray-600 flex items-center">
             <Calendar className="w-4 h-4 mr-2" />
-            Período: {formatDateSafe(report.dateRange.start)} até {formatDateSafe(report.dateRange.end)}
+            Período: {formatDate(report.dateRange.start)} até {formatDate(report.dateRange.end)}
           </p>
         </div>
       )}
@@ -178,7 +153,7 @@ function TransactionRow({
         />
       </td>
       <td className="py-3 px-6 text-body">
-        {formatDateSafe(transaction.date)}
+        {formatDate(transaction.date)}
       </td>
       <td className="py-3 px-6 text-body max-w-xs">
         <div className="truncate">

@@ -1,20 +1,29 @@
-/**
- *
- * @param {Date} date
- * @param {string} separator
- * @returns {string} the date in the format DD-MM-YYYY.
- */
-const formatDate = (date: Date | null, separator = "-") => {
-  if (date === null || date === undefined) {
-    return "";
+// Função para formatar data de forma segura
+export default function formatDate(
+  date: string | Date | null | undefined
+): string {
+  if (!date) return "Data inválida";
+
+  try {
+    let dateObj: Date;
+
+    if (typeof date === "string") {
+      dateObj = new Date(date);
+    } else {
+      dateObj = date;
+    }
+
+    if (isNaN(dateObj.getTime())) {
+      return "Data inválida";
+    }
+
+    return dateObj.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  } catch (error) {
+    console.error("Erro ao formatar data:", error);
+    return "Data inválida";
   }
-
-  const nextDate = typeof date === "string" ? new Date(date) : date;
-
-  const year = nextDate.getFullYear();
-  const month = (nextDate.getMonth() + 1).toString().padStart(2, "0");
-  const day = nextDate.getDate().toString().padStart(2, "0");
-  return `${day}${separator}${month}${separator}${year}`;
-};
-
-export default formatDate;
+}

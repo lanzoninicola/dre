@@ -15,19 +15,19 @@ export const SIDEBAR_MENU_ITEMS: SidebarMenuItems = {
     {
       label: "Iniçio",
       icon: LayoutDashboard,
-      href: "/home",
+      href: "/app",
       active: true,
     },
 
     {
       label: "Importar Extrato",
       icon: Upload,
-      href: "/home/import",
+      href: "/app/import",
     },
     {
       label: "Transações",
       icon: FileText,
-      href: "/transacoes",
+      href: "/app/bank-transactions",
     },
     {
       label: "Relatórios",

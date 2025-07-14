@@ -1,4 +1,4 @@
-// app/routes/home.import._index.tsx
+// app/routes/app.import._index.tsx
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import type { LoaderFunction, ActionFunction } from "@remix-run/node";
 import { json, unstable_parseMultipartFormData, unstable_createMemoryUploadHandler } from "@remix-run/node";
@@ -12,6 +12,7 @@ import { validateOFXFile } from "~/domain/ofx/ofx.client";
 import { parseOFX, generateFileHash, detectDuplicateTransactions, generateImportReport } from "~/domain/ofx/ofx-parser.server";
 import crypto from "crypto";
 import AlertMessage from "~/components/alert-message/alert-message";
+import formatDate from "~/utils/format-date";
 
 // ====================================
 // LOADER (mantido igual)
@@ -453,9 +454,7 @@ function LoadingState({ message }: { message: string }) {
 }
 
 function ImportHistorySidebar({ recentImports }: { recentImports: any[] }) {
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('pt-BR');
-  };
+
 
   return (
     <div className="space-y-6">

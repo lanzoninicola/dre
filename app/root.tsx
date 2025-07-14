@@ -99,7 +99,7 @@ export function ErrorBoundary({ error }: { error: Error }) {
 
               <div className="space-y-3">
                 <a
-                  href="/"
+                  href="/app"
                   className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center"
                 >
                   Voltar ao início

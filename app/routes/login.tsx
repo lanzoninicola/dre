@@ -13,7 +13,7 @@ import { GlassInput } from "~/components/layouts/glass-input";
 
 export const loader: LoaderFunction = async ({ request }) => {
   const user = await getUser(request);
-  if (user) return redirect("/home");
+  if (user) return redirect("/app");
   return json({});
 };
 
@@ -39,7 +39,7 @@ export const action: ActionFunction = async ({ request }) => {
     return badRequest("Senha incorreta");
   }
 
-  return createUserSession(user.id, "/home");
+  return createUserSession(user.id, "/app");
 };
 
 export default function Login() {

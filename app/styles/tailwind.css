@@ -123,3 +123,14 @@
     font-variation-settings: "opsz" 32;
   }
 }
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

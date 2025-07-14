@@ -1,4 +1,4 @@
-// app/routes/dashboard.import._index.tsx
+// app/routes/home.import._index.tsx
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import type { LoaderFunction, ActionFunction } from "@remix-run/node";
 import { json, unstable_parseMultipartFormData, unstable_createMemoryUploadHandler } from "@remix-run/node";

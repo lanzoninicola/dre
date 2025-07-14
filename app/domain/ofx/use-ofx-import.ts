@@ -130,7 +130,7 @@ export function useOFXImport(): UseOFXImportReturn {
           JSON.stringify(selectedTransactionIds)
         );
 
-        const response = await fetch("/dashboard/import", {
+        const response = await fetch("/home/import", {
           method: "POST",
           body: formData,
         });

@@ -1,5 +1,3 @@
-// app/utils/dre-calculations.ts
-
 import { DRELineItem, DREStructure } from "./dre.types";
 
 export function calculateDREStructure(lineItems: DRELineItem[]): DREStructure {
@@ -67,26 +65,4 @@ function calculateByGroupType(
       (item) => item.groupType === type && orders.includes(item.groupOrder)
     )
     .reduce((sum, item) => sum + Math.abs(item.totalAmount), 0);
-}
-
-export function formatDREPeriod(periodStart: Date, periodEnd: Date): string {
-  const formatter = new Intl.DateTimeFormat("pt-BR", {
-    month: "long",
-    year: "numeric",
-  });
-
-  if (isSameMonth(periodStart, periodEnd)) {
-    return formatter.format(periodStart);
-  }
-
-  return `${periodStart.toLocaleDateString(
-    "pt-BR"
-  )} a ${periodEnd.toLocaleDateString("pt-BR")}`;
-}
-
-function isSameMonth(date1: Date, date2: Date): boolean {
-  return (
-    date1.getMonth() === date2.getMonth() &&
-    date1.getFullYear() === date2.getFullYear()
-  );
 }

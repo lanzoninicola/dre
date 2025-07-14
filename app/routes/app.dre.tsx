@@ -5,7 +5,7 @@ export default function DreOutlet() {
   return (
     <PageLayout
       title="Demonstração do Resultado do Exercício"
-      subtitle=""
+      subtitle="Visualize todas as Demonstrações do Resultado do Exercício"
     >
       <Outlet />
     </PageLayout>

@@ -9,11 +9,9 @@ import {
   ListDREsRequest,
 } from "./dre.types";
 import { createAuditLog } from "../audit/audit.server";
-import {
-  calculateDREStructure,
-  formatDREPeriod,
-} from "./dre-calculation.server";
+import { calculateDREStructure } from "./dre-calculation.server";
 import { prisma } from "~/infrastructure/prisma/client.server";
+import formatDREPeriod from "./utils/format-dre-period";
 
 // ====================================
 // DRE DATA QUERIES
@@ -50,7 +48,7 @@ export async function getTransactionsSummaryForPeriod(
     INNER JOIN bank_statements bs ON bt.statement_id = bs.id
     INNER JOIN account_plan ap ON bt.account_id = ap.id
     INNER JOIN dre_group dg ON ap.dre_group_id = dg.id
-    WHERE bs.company_id = ${companyId}
+    WHERE bs.companyId = ${companyId}
       AND bt.date >= ${periodStart}
       AND bt.date <= ${periodEnd}
       AND bt.account_id IS NOT NULL
@@ -133,7 +131,7 @@ export async function findDREs(filters: DREFilters): Promise<DREData[]> {
   const where: any = {};
 
   if (filters.companyId) {
-    where.company_id = filters.companyId;
+    where.companyId = filters.companyId;
   }
 
   if (filters.periodStart) {
@@ -235,7 +233,7 @@ export async function generateDRE(
     await prisma.dRE.create({
       data: {
         id: dreId,
-        company_id: request.companyId,
+        companyId: request.companyId,
         period_start: request.periodStart,
         period_end: request.periodEnd,
         data: dreStructure,

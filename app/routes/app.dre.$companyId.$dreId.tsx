@@ -4,10 +4,11 @@ import { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link, Form } from "@remix-run/react";
 import { ArrowLeft, Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
 import { requireUser } from "~/domain/auth/auth.server";
-import { formatDREPeriod } from "~/domain/dre/dre-calculation.server";
 import { findDREById } from "~/domain/dre/dre.server";
 import { generateDREPDF } from "~/domain/dre/generate-dre-pdf.server";
+import formatDREPeriod from "~/domain/dre/utils/format-dre-period";
 import prismaClient from "~/lib/prisma/client.server";
+import formatCurrency from "~/utils/format-currency";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const user = await requireUser(request);
@@ -80,6 +81,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
         }
       });
 
+
+
       const fileName = `DRE_${company.name.replace(/[^a-zA-Z0-9]/g, '_')}_${formatDREPeriod(dre.periodStart, dre.periodEnd).replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
 
       return new Response(pdfBuffer, {
@@ -102,9 +105,7 @@ export default function DREDetailPage() {
 
   const data = dre.data;
 
-  function formatDREPeriod(periodStart: any, periodEnd: any): import("react").ReactNode {
-    throw new Error("Function not implemented.");
-  }
+  console.log({ dre, periodStart: dre.periodStart, start: new Date(dre.periodStart), end: new Date(dre.periodEnd) })
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -112,14 +113,14 @@ export default function DREDetailPage() {
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <Link
-            to={`/empresas/${company.id}/dres`}
+            to={`/app/dre`}
             className="text-gray-600 hover:text-gray-900"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              DRE - {formatDREPeriod(dre.periodStart, dre.periodEnd)}
+              DRE - {formatDREPeriod(new Date(dre.periodStart), new Date(dre.periodEnd))}
             </h1>
             <p className="text-gray-600 mt-1">
               {company.name} • CNPJ: {company.cnpj}
@@ -157,7 +158,7 @@ export default function DREDetailPage() {
               year: 'numeric',
               hour: '2-digit',
               minute: '2-digit'
-            }).format(dre.generatedAt)}
+            }).format(new Date(dre.generatedAt))}
           </p>
         </div>
 
@@ -324,9 +325,7 @@ function DRELine({
     valueClass = "text-gray-700";
   }
 
-  function formatCurrency(value: number): import("react").ReactNode {
-    throw new Error("Function not implemented.");
-  }
+
 
   return (
     <div className={className}>
@@ -352,9 +351,7 @@ function SummaryCard({ title, value, icon, color }: SummaryCardProps) {
     red: "text-red-600 bg-red-50"
   };
 
-  function formatCurrency(value: number): import("react").ReactNode {
-    throw new Error("Function not implemented.");
-  }
+
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">

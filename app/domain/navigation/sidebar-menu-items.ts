@@ -6,26 +6,23 @@ import {
   Settings,
   Upload,
   Users,
+  BookUser,
 } from "lucide-react";
 import { SidebarMenuItems } from "./navigation.types";
 
 export const SIDEBAR_MENU_ITEMS: SidebarMenuItems = {
   navMain: [
     {
-      label: "Dashboard",
+      label: "Iniçio",
       icon: LayoutDashboard,
-      href: "/dashboard",
+      href: "/home",
       active: true,
     },
-    {
-      label: "Empresas",
-      icon: Building2,
-      href: "/empresas",
-    },
+
     {
       label: "Importar Extrato",
       icon: Upload,
-      href: "/dashboard/import",
+      href: "/home/import",
     },
     {
       label: "Transações",
@@ -42,10 +39,16 @@ export const SIDEBAR_MENU_ITEMS: SidebarMenuItems = {
         { label: "Auditoria", href: "/relatorios/auditoria" },
       ],
     },
+  ],
+  navSecondary: [
     {
-      label: "Usuários",
-      icon: Users,
-      href: "/usuarios",
+      label: "Cadastro",
+      icon: BookUser,
+      href: "/cadastro",
+      subMenu: [
+        { label: "Usuários", href: "/cadastro/usuarios", icon: Users },
+        { label: "Empresas", href: "/cadastro/empresas", icon: Building2 },
+      ],
     },
     {
       label: "Configurações",

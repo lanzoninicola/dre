@@ -1,4 +1,4 @@
-// routes/dashboard.tsx
+// routes/home.tsx
 import { Link } from "@remix-run/react";
 import {
   TrendingUp,
@@ -19,7 +19,7 @@ import { Navbar } from "~/components/layouts/nav-bar";
 import { PageLayout } from "~/components/layouts/page-layout";
 import { StatCard } from "~/components/layouts/stat-card";
 
-export default function Dashboard() {
+export default function Home() {
   const user = {
     name: "João Silva",
     email: "joao@contabilidade.com",
@@ -102,7 +102,7 @@ export default function Dashboard() {
   return (
     <>
       <PageLayout
-        title="Dashboard"
+        title="Iniçio"
         subtitle="Visão geral do seu sistema de gestão contábil"
       >
         {/* Stats Grid */}
@@ -123,7 +123,7 @@ export default function Dashboard() {
 
               <div className="space-y-4">
                 <Link
-                  to={"/dashboard/import"}
+                  to={"/home/import"}
                 >
                   <GradientButton
                     variant="primary"

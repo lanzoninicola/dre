@@ -1,4 +1,4 @@
-// routes/dashboard.tsx
+// routes/home.tsx
 import { json, LoaderFunction } from "@remix-run/node";
 import { Outlet, useLoaderData } from "@remix-run/react";
 import { AppSidebar } from "~/components/app-sidebar/app-sidebar";
@@ -13,7 +13,7 @@ export const loader: LoaderFunction = async ({ request }) => {
   })
 }
 
-export default function Dashboard() {
+export default function Iniçio() {
   const { user } = useLoaderData<typeof loader>();
 
   return (

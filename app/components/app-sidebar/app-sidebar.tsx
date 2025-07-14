@@ -34,6 +34,7 @@ import { Link } from "@remix-run/react"
 import { SIDEBAR_MENU_ITEMS } from "~/domain/navigation/sidebar-menu-items"
 import { INavItem } from "~/domain/navigation/navigation.types"
 import { useState } from "react"
+import { Separator } from "../ui/separator"
 
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -53,7 +54,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link to="/dashboard" className="hover:opacity-80 transition-opacity">
+              <Link to="/home" className="hover:opacity-80 transition-opacity">
                 <div className="flex items-center gap-3">
 
                   <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center">
@@ -72,8 +73,8 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={SIDEBAR_MENU_ITEMS.navMain} />
-
-
+        <Separator />
+        <NavMain items={SIDEBAR_MENU_ITEMS.navSecondary || []} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

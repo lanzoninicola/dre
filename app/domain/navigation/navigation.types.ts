@@ -10,4 +10,5 @@ export interface INavItem {
 
 export interface SidebarMenuItems {
   navMain: INavItem[];
+  navSecondary?: INavItem[];
 }

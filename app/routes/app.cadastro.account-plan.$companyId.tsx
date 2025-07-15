@@ -20,35 +20,26 @@ interface LoaderData {
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const user = await requireUser(request);
-  const url = new URL(request.url);
-  const companyId = url.searchParams.get('company');
+  const companyId = params.companyId;
 
   if (!companyId) {
-    return badRequest("Empresa não informada");
+    return badRequest("Empresa não informada na URL");
   }
 
   // Criar uma promise que retorna todos os dados necessários
   const data = async () => {
     try {
-      console.log(`Loading account plan data for company: ${companyId}`);
+      console.log(`[loader] Buscando dados para companyId: ${companyId}`);
 
       const [company, accountPlanData] = await Promise.all([
         getCompanyById(companyId),
         getAccountPlanData(companyId)
       ]);
 
-      console.log('Loaded company:', company);
-      console.log('Loaded account plan data:', {
-        accountsCount: accountPlanData.accounts.length,
-        dreGroupsCount: accountPlanData.dreGroups.length
-      });
-
-      // Verificar se a empresa foi encontrada
       if (!company) {
-        throw new Error(`Company not found with ID: ${companyId}`);
+        throw new Error(`Empresa não encontrada com ID: ${companyId}`);
       }
 
-      // Verificar se o usuário tem acesso à empresa
       const hasAccess = await validateUserCompanyAccess(companyId, user.id);
       if (!hasAccess) {
         throw new Error("Você não tem acesso a esta empresa");
@@ -60,13 +51,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         dreGroups: accountPlanData.dreGroups
       };
     } catch (error) {
-      console.error('Error in loader:', error);
+      console.error('[loader] Erro ao carregar dados do plano de contas:', error);
       throw error;
     }
   };
 
   return defer<LoaderData>({ data: data() });
 }
+
 
 // Componente principal com Suspense/Await
 export default function CompanyAccountingPlan() {
@@ -275,7 +267,8 @@ function AccountPlanContent({
 
   // Agrupar por grupo DRE
   const groupedAccounts = filteredAccounts.reduce((groups, account) => {
-    const groupName = account.dreGroup.name;
+    const groupName = account.dreGroup?.name || 'Sem grupo';
+
     if (!groups[groupName]) {
       groups[groupName] = [];
     }

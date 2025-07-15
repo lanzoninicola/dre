@@ -1,6 +1,6 @@
 import { Company, DREGroup } from "@prisma/client";
 import { json, LoaderFunctionArgs } from "@remix-run/node";
-import { Await, defer, Link, useActionData, useFetcher, useLoaderData } from "@remix-run/react";
+import { Await, defer, Link, Outlet, useActionData, useFetcher, useLoaderData } from "@remix-run/react";
 import { Search, FolderTree, Tag, AlertTriangle, Check, Edit, Trash2, X, Loader2, Plus, ArrowLeft } from "lucide-react";
 import { useState, Suspense } from "react";
 import { AccountPlan, getAccountPlanData } from "~/domain/account-plan/account-plan.server";
@@ -113,7 +113,8 @@ export default function CompanyAccountingPlan() {
   const { data } = useLoaderData<LoaderData>();
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <>
+      <Outlet />
       <Suspense fallback={<AccountPlanLoading />}>
         <Await
           resolve={data}
@@ -206,7 +207,7 @@ export default function CompanyAccountingPlan() {
           }}
         </Await>
       </Suspense>
-    </div>
+    </>
   );
 }
 

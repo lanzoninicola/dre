@@ -1,54 +1,72 @@
-import { FileText, Link } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { FileText, Search, ChevronDown, Building2, X } from "lucide-react";
 import DRE from "./dre";
 import { DREData } from "../dre.types";
+import { Company } from "@prisma/client";
+import CompanyDropdownFilterWithSearch from "~/domain/company/components/company-fiter";
 
-export default function DREsList({ dres = [] }: { dres: DREData[] }) {
-  // if (!dresResult.success) {
-  //   return (
-  //     <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-  //       <div className="text-center py-8">
-  //         <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-  //         <p className="text-gray-500">Erro ao carregar DREs</p>
-  //         <p className="text-sm text-red-600 mt-2">{dresResult.error}</p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+interface DREsListProps {
+  dres: DREData[];
+  companies: Company[];
+}
 
 
 
-  if (dres.length === 0) {
-    return (
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-        <div className="text-center py-8">
-          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Nenhuma DRE encontrada
-          </h3>
-          <p className="text-gray-500 mb-4">
-            As DREs aparecerão aqui quando forem geradas pelas empresas.
-          </p>
-          <Link
-            to="/empresas"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md font-medium"
-          >
-            Ver Empresas
-          </Link>
-        </div>
-      </div>
-    );
-  }
+export default function DREsList({ dres = [], companies = [] }: DREsListProps) {
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+
+  // Filter DREs based on selected company
+  const filteredDres = useMemo(() => {
+    if (!selectedCompany) return dres;
+    return dres.filter(dre => dre.companyId === selectedCompany.id);
+  }, [dres, selectedCompany]);
+
+  const dreCount = filteredDres.length;
+  const totalDreCount = dres.length;
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
       <div className="p-6 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900">Todas as DREs</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              DREs {selectedCompany ? `- ${selectedCompany.name}` : ''}
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              {selectedCompany
+                ? `${dreCount} de ${totalDreCount} DREs`
+                : `${totalDreCount} DREs encontradas`
+              }
+            </p>
+          </div>
+
+          <CompanyDropdownFilterWithSearch
+            companies={companies}
+            selectedCompany={selectedCompany}
+            onCompanyChange={setSelectedCompany}
+          />
+        </div>
       </div>
 
       <div className="divide-y divide-gray-200">
-        {Array.isArray(dres) && dres.map((dre: any) => (
-          <DRE key={dre.id} dre={dre} />
-        ))}
+        {filteredDres.length > 0 ? (
+          filteredDres.map((dre) => (
+            <DRE key={dre.id} dre={dre} />
+          ))
+        ) : (
+          <div className="p-8 text-center">
+            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h4 className="text-lg font-medium text-gray-900 mb-2">
+              Nenhuma DRE encontrada
+            </h4>
+            <p className="text-gray-500">
+              {selectedCompany
+                ? `Não há DREs cadastradas para ${selectedCompany.name}.`
+                : 'Não há DREs cadastradas no sistema.'
+              }
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

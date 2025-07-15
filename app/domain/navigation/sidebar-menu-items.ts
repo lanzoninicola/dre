@@ -51,8 +51,13 @@ export const SIDEBAR_MENU_ITEMS: SidebarMenuItems = {
       icon: BookUser,
       href: "/cadastro",
       subMenu: [
-        { label: "Usuários", href: "/cadastro/usuarios", icon: Users },
-        { label: "Empresas", href: "/cadastro/empresas", icon: Building2 },
+        { label: "Usuários", href: "/app/cadastro/usuarios", icon: Users },
+        { label: "Empresas", href: "/app/cadastro/empresas", icon: Building2 },
+        {
+          label: "Plano de contas",
+          href: "/app/cadastro/account-plan",
+          icon: Building2,
+        },
       ],
     },
     {

@@ -311,17 +311,6 @@ export async function reconcileTransaction({
   return updatedTransaction;
 }
 
-export async function getCompanyById(companyId: string) {
-  return await prisma.company.findUnique({
-    where: { id: companyId },
-    select: {
-      id: true,
-      name: true,
-      cnpj: true,
-    },
-  });
-}
-
 // Função helper para verificar acesso do usuário à empresa
 export async function verifyUserCompanyAccess(
   userId: string,

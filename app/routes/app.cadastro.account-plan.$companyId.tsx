@@ -1,14 +1,14 @@
 import { Company, DREGroup } from "@prisma/client";
-import { LoaderFunctionArgs } from "@remix-run/node";
+import { json, LoaderFunctionArgs } from "@remix-run/node";
 import { Await, defer, Link, useActionData, useFetcher, useLoaderData } from "@remix-run/react";
 import { Search, FolderTree, Tag, AlertTriangle, Check, Edit, Trash2, X, Loader2, Plus, ArrowLeft } from "lucide-react";
 import { useState, Suspense } from "react";
 import { AccountPlan, getAccountPlanData } from "~/domain/account-plan/account-plan.server";
 import { requireUser } from "~/domain/auth/auth.server";
 import { badRequest } from "~/utils/http-response.server";
-import { action } from "./app.bank-transactions.$companyId";
 import AccountPlanForm from "~/domain/account-plan/components/account-plan-form";
 import { getCompanyById, validateUserCompanyAccess } from "~/domain/company/company.server";
+import prismaClient from "~/lib/prisma/client.server";
 
 interface LoaderData {
   data: Promise<{
@@ -59,6 +59,54 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   return defer<LoaderData>({ data: data() });
 }
 
+export async function action({ request }: LoaderFunctionArgs) {
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+  const companyId = formData.get("companyId")?.toString();
+
+  if (!companyId) {
+    return json({ error: "Empresa não informada." }, { status: 400 });
+  }
+
+  try {
+    if (intent === "move-account") {
+      const accountId = formData.get("accountId")?.toString();
+      const newDreGroupId = formData.get("newDreGroupId")?.toString();
+
+      if (!accountId || !newDreGroupId) {
+        return json({ error: "Dados incompletos para mover conta." }, { status: 400 });
+      }
+
+      await prismaClient.accountPlan.update({
+        where: { id: accountId },
+        data: {
+          dreGroupId: newDreGroupId
+        }
+      });
+
+      return json({ success: "Conta movida com sucesso." });
+    }
+
+    if (intent === "delete") {
+      const accountId = formData.get("accountId")?.toString();
+
+      if (!accountId) {
+        return json({ error: "ID da conta não informado." }, { status: 400 });
+      }
+
+      await prismaClient.accountPlan.delete({
+        where: { id: accountId }
+      });
+
+      return json({ success: "Conta excluída com sucesso." });
+    }
+
+    return json({ error: "Ação não reconhecida." }, { status: 400 });
+  } catch (error: any) {
+    console.error("Erro na action do plano de contas:", error);
+    return json({ error: "Erro interno ao processar a solicitação." }, { status: 500 });
+  }
+}
 
 // Componente principal com Suspense/Await
 export default function CompanyAccountingPlan() {
@@ -342,7 +390,7 @@ function AccountPlanContent({
     <>
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="max-w-7xl mx-auto px-4 mb-6">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -357,9 +405,7 @@ function AccountPlanContent({
               <h1 className="text-2xl font-semibold text-gray-900">
                 Plano de Contas - {company?.name}
               </h1>
-              <p className="text-gray-500 mt-1">
-                Gerencie as contas contábeis e organize entre grupos DRE
-              </p>
+
             </div>
             <div className="flex items-center gap-3">
               <Link

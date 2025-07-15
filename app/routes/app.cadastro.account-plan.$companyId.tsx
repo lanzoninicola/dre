@@ -1,16 +1,17 @@
 import { Company, DREGroup } from "@prisma/client";
 import { LoaderFunctionArgs } from "@remix-run/node";
-import { Await, defer, useActionData, useFetcher, useLoaderData } from "@remix-run/react";
-import { Search, FolderTree, Tag, AlertTriangle, Check, Edit, Trash2, X, Loader2, Plus } from "lucide-react";
+import { Await, defer, Link, useActionData, useFetcher, useLoaderData } from "@remix-run/react";
+import { Search, FolderTree, Tag, AlertTriangle, Check, Edit, Trash2, X, Loader2, Plus, ArrowLeft } from "lucide-react";
 import { useState, Suspense } from "react";
 import { AccountPlan, getAccountPlanData } from "~/domain/account-plan/account-plan.server";
 import { requireUser } from "~/domain/auth/auth.server";
 import { badRequest } from "~/utils/http-response.server";
 import { action } from "./app.bank-transactions.$companyId";
 import AccountPlanForm from "~/domain/account-plan/components/account-plan-form";
+import { getCompanyById, validateUserCompanyAccess } from "~/domain/company/company.server";
 
 interface LoaderData {
-  accountPlanData: Promise<{
+  data: Promise<{
     company: Company;
     accounts: AccountPlan[];
     dreGroups: DREGroup[];
@@ -26,34 +27,178 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     return badRequest("Empresa não informada");
   }
 
-  // Buscar dados do plano de contas de forma assíncrona
-  const accountPlanData = getAccountPlanData(companyId, user.id);
+  // Criar uma promise que retorna todos os dados necessários
+  const data = async () => {
+    try {
+      console.log(`Loading account plan data for company: ${companyId}`);
 
-  return defer<LoaderData>({
-    accountPlanData
-  });
+      const [company, accountPlanData] = await Promise.all([
+        getCompanyById(companyId),
+        getAccountPlanData(companyId)
+      ]);
+
+      console.log('Loaded company:', company);
+      console.log('Loaded account plan data:', {
+        accountsCount: accountPlanData.accounts.length,
+        dreGroupsCount: accountPlanData.dreGroups.length
+      });
+
+      // Verificar se a empresa foi encontrada
+      if (!company) {
+        throw new Error(`Company not found with ID: ${companyId}`);
+      }
+
+      // Verificar se o usuário tem acesso à empresa
+      const hasAccess = await validateUserCompanyAccess(companyId, user.id);
+      if (!hasAccess) {
+        throw new Error("Você não tem acesso a esta empresa");
+      }
+
+      return {
+        company,
+        accounts: accountPlanData.accounts,
+        dreGroups: accountPlanData.dreGroups
+      };
+    } catch (error) {
+      console.error('Error in loader:', error);
+      throw error;
+    }
+  };
+
+  return defer<LoaderData>({ data: data() });
 }
 
-// Componente de Loading
+// Componente principal com Suspense/Await
+export default function CompanyAccountingPlan() {
+  const { data } = useLoaderData<LoaderData>();
+
+  return (
+    <div className="bg-gray-50 min-h-screen">
+      <Suspense fallback={<AccountPlanLoading />}>
+        <Await
+          resolve={data}
+          errorElement={
+            <div className="max-w-7xl mx-auto px-4 py-8">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+                <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-red-900 mb-2">
+                  Erro ao carregar dados
+                </h3>
+                <p className="text-red-700 mb-4">
+                  Não foi possível carregar o plano de contas da empresa selecionada.
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-md"
+                  >
+                    Tentar novamente
+                  </button>
+                  <Link
+                    to="/app/cadastro/account-plan"
+                    className="bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-md"
+                  >
+                    Voltar
+                  </Link>
+                </div>
+              </div>
+            </div>
+          }
+        >
+          {(resolvedData) => {
+            // Debug log para verificar os dados
+            console.log('Resolved data:', resolvedData);
+
+            // Verificações de segurança
+            if (!resolvedData) {
+              console.error('No data resolved');
+              return (
+                <div className="max-w-7xl mx-auto px-4 py-8">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+                    <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-yellow-900 mb-2">
+                      Dados não encontrados
+                    </h3>
+                    <p className="text-yellow-700 mb-4">
+                      Nenhum dado foi retornado para a empresa selecionada.
+                    </p>
+                    <Link
+                      to="/app/cadastro/account-plan"
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium px-4 py-2 rounded-md"
+                    >
+                      Voltar à seleção
+                    </Link>
+                  </div>
+                </div>
+              );
+            }
+
+            if (!resolvedData.company) {
+              console.error('Company not found in resolved data');
+              return (
+                <div className="max-w-7xl mx-auto px-4 py-8">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+                    <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-yellow-900 mb-2">
+                      Empresa não encontrada
+                    </h3>
+                    <p className="text-yellow-700 mb-4">
+                      A empresa selecionada não foi encontrada ou você não tem acesso a ela.
+                    </p>
+                    <Link
+                      to="/app/cadastro/account-plan"
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium px-4 py-2 rounded-md"
+                    >
+                      Voltar à seleção
+                    </Link>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <AccountPlanContent
+                company={resolvedData.company}
+                accounts={resolvedData.accounts || []}
+                dreGroups={resolvedData.dreGroups || []}
+              />
+            );
+          }}
+        </Await>
+      </Suspense>
+    </div>
+  );
+}
+
+// Componente de Loading melhorado
 function AccountPlanLoading() {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="space-y-6">
-        {/* Header Loading */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="h-8 bg-gray-200 rounded w-64 mb-2 animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
-              </div>
-              <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
+    <div className="bg-gray-50 min-h-screen">
+      {/* Header Loading */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-8 bg-gray-200 rounded w-80 mb-2 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-64 animate-pulse"></div>
             </div>
+            <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
           </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Filters Loading */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex gap-4">
+            <div className="h-10 bg-gray-200 rounded w-64 animate-pulse"></div>
+            <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
+          </div>
+          <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
         </div>
 
         {/* Stats Loading */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {[1, 2, 3].map((i) => (
             <div key={i} className="bg-white border border-gray-200 rounded-lg p-6">
               <div className="flex items-center">
@@ -79,33 +224,54 @@ function AccountPlanLoading() {
   );
 }
 
-// Componente Principal do Plano de Contas
 function AccountPlanContent({
   company,
-  accounts,
-  dreGroups
+  accounts = [],
+  dreGroups = []
 }: {
-  company: Company;
+  company: Company | null;
   accounts: AccountPlan[];
   dreGroups: DREGroup[];
 }) {
   const actionData = useActionData<typeof action>();
   const fetcher = useFetcher();
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountPlan | null>(null);
   const [deletingAccount, setDeletingAccount] = useState<AccountPlan | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<'all' | 'receita' | 'despesa'>('all');
   const [draggedAccount, setDraggedAccount] = useState<AccountPlan | null>(null);
 
+  // Verificação de segurança para company
+  if (!company) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+          <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-yellow-900 mb-2">
+            Empresa não encontrada
+          </h3>
+          <p className="text-yellow-700 mb-4">
+            A empresa selecionada não foi encontrada ou você não tem acesso a ela.
+          </p>
+          <Link
+            to="/app/cadastro/account-plan"
+            className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium px-4 py-2 rounded-md"
+          >
+            Voltar à seleção
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   // Filtrar contas
-  const filteredAccounts = accounts.filter(account => {
+  const filteredAccounts = accounts?.filter(account => {
     const matchesSearch = account.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       account.dreGroup.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = typeFilter === 'all' || account.type === typeFilter;
     return matchesSearch && matchesType;
-  });
+  }) || [];
 
   // Agrupar por grupo DRE
   const groupedAccounts = filteredAccounts.reduce((groups, account) => {
@@ -119,7 +285,6 @@ function AccountPlanContent({
 
   const handleEdit = (account: AccountPlan) => {
     setEditingAccount(account);
-    setIsFormOpen(true);
   };
 
   const handleDelete = (account: AccountPlan) => {
@@ -127,7 +292,6 @@ function AccountPlanContent({
   };
 
   const handleCloseForm = () => {
-    setIsFormOpen(false);
     setEditingAccount(null);
   };
 
@@ -188,21 +352,30 @@ function AccountPlanContent({
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
+              <div className="flex items-center gap-3 mb-2">
+                <Link
+                  to="/app/cadastro/account-plan"
+                  className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Voltar
+                </Link>
+              </div>
               <h1 className="text-2xl font-semibold text-gray-900">
-                Plano de Contas - {company.name}
+                Plano de Contas - {company?.name}
               </h1>
               <p className="text-gray-500 mt-1">
                 Gerencie as contas contábeis e organize entre grupos DRE
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsFormOpen(true)}
+              <Link
+                to="new"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-md flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Nova Conta
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -210,7 +383,7 @@ function AccountPlanContent({
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Filtros */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
+        <div className="flex justify-between items-center mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -244,7 +417,7 @@ function AccountPlanContent({
             <div className="flex items-center">
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Total de Contas</p>
-                <p className="text-2xl font-semibold text-gray-900">{accounts.length}</p>
+                <p className="text-2xl font-semibold text-gray-900">{accounts?.length || 0}</p>
               </div>
               <FolderTree className="w-8 h-8 text-indigo-600" />
             </div>
@@ -254,7 +427,7 @@ function AccountPlanContent({
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Contas de Receita</p>
                 <p className="text-2xl font-semibold text-green-600">
-                  {accounts.filter(a => a.type === 'receita').length}
+                  {accounts?.filter(a => a.type === 'receita').length || 0}
                 </p>
               </div>
               <Tag className="w-8 h-8 text-green-600" />
@@ -265,7 +438,7 @@ function AccountPlanContent({
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Contas de Despesa</p>
                 <p className="text-2xl font-semibold text-red-600">
-                  {accounts.filter(a => a.type === 'despesa').length}
+                  {accounts?.filter(a => a.type === 'despesa').length || 0}
                 </p>
               </div>
               <Tag className="w-8 h-8 text-red-600" />
@@ -297,20 +470,22 @@ function AccountPlanContent({
         )}
 
         {/* Instruções de Drag and Drop */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-start gap-3">
-            <FolderTree className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div>
-              <h3 className="text-sm font-medium text-blue-900">
-                Reorganizar Contas
-              </h3>
-              <p className="text-sm text-blue-700 mt-1">
-                Arraste e solte as contas entre os grupos DRE para reorganizar o plano de contas.
-                Só é possível mover contas entre grupos compatíveis (receita para receita, despesa para despesa).
-              </p>
+        {accounts?.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <FolderTree className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-900">
+                  Reorganizar Contas
+                </h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  Arraste e solte as contas entre os grupos DRE para reorganizar o plano de contas.
+                  Só é possível mover contas entre grupos compatíveis (receita para receita, despesa para despesa).
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Lista de Contas Agrupadas */}
         {Object.keys(groupedAccounts).length > 0 ? (
@@ -361,7 +536,7 @@ function AccountPlanContent({
                               </span>
                             </div>
                             <p className="text-sm text-gray-600 mt-1">
-                              {account._count.bankTransactions} transação{account._count.bankTransactions !== 1 ? 'ões' : ''} vinculada{account._count.bankTransactions !== 1 ? 's' : ''}
+                              {account._count?.bankTransactions || 0} transação{(account._count?.bankTransactions || 0) !== 1 ? 'ões' : ''} vinculada{(account._count?.bankTransactions || 0) !== 1 ? 's' : ''}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -373,8 +548,8 @@ function AccountPlanContent({
                             </button>
                             <button
                               onClick={() => handleDelete(account)}
-                              disabled={account._count.bankTransactions > 0}
-                              className={`p-2 rounded-md ${account._count.bankTransactions > 0
+                              disabled={(account._count?.bankTransactions || 0) > 0}
+                              className={`p-2 rounded-md ${(account._count?.bankTransactions || 0) > 0
                                 ? 'text-gray-400 cursor-not-allowed'
                                 : 'text-red-600 hover:text-red-700 hover:bg-red-50'
                                 }`}
@@ -394,29 +569,30 @@ function AccountPlanContent({
           <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
             <FolderTree className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Nenhuma conta encontrada
+              {searchTerm || typeFilter !== 'all' ? 'Nenhuma conta encontrada' : 'Nenhuma conta cadastrada'}
             </h3>
             <p className="text-gray-500 mb-6">
               {searchTerm || typeFilter !== 'all'
                 ? 'Tente ajustar os filtros de busca.'
                 : 'Comece criando sua primeira conta do plano de contas.'}
             </p>
-            {!searchTerm && typeFilter === 'all' && (
-              <button
-                onClick={() => setIsFormOpen(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-md"
+            {(!searchTerm && typeFilter === 'all') && (
+              <Link
+                to="new"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-md inline-flex items-center gap-2"
               >
+                <Plus className="w-4 h-4" />
                 Criar primeira conta
-              </button>
+              </Link>
             )}
           </div>
         )}
       </div>
 
       {/* Modal de Formulário */}
-      {isFormOpen && (
+      {editingAccount && (
         <AccountPlanForm
-          companyId={company.id}
+          companyId={company?.id}
           dreGroups={dreGroups}
           account={editingAccount}
           onClose={handleCloseForm}
@@ -468,7 +644,7 @@ function AccountPlanContent({
                     {
                       intent: "delete",
                       accountId: deletingAccount.id,
-                      companyId: company.id
+                      companyId: company?.id || ""
                     },
                     { method: "post" }
                   );
@@ -494,47 +670,5 @@ function AccountPlanContent({
         </div>
       )}
     </>
-  );
-}
-
-// Componente principal com Suspense/Await
-export default function CompanyAccountingPlan() {
-  const { accountPlanData } = useLoaderData<LoaderData>();
-
-  return (
-    <div className="bg-gray-50 min-h-screen">
-      <Suspense fallback={<AccountPlanLoading />}>
-        <Await
-          resolve={accountPlanData}
-          errorElement={
-            <div className="max-w-7xl mx-auto px-4 py-8">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
-                <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-red-900 mb-2">
-                  Erro ao carregar dados
-                </h3>
-                <p className="text-red-700 mb-4">
-                  Não foi possível carregar o plano de contas da empresa selecionada.
-                </p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-md"
-                >
-                  Tentar novamente
-                </button>
-              </div>
-            </div>
-          }
-        >
-          {({ company, accounts, dreGroups }) => (
-            <AccountPlanContent
-              company={company}
-              accounts={accounts}
-              dreGroups={dreGroups}
-            />
-          )}
-        </Await>
-      </Suspense>
-    </div>
   );
 }

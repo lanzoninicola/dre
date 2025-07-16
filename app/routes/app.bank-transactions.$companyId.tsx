@@ -18,6 +18,7 @@ import {
   reconcileTransaction
 } from "~/domain/transactions/transactions.server";
 import { buildTransactionFilters } from "~/domain/transactions/transactions.utils";
+import { SearchInput } from "~/components/search-input/search-input";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const user = await requireUser(request);
@@ -298,17 +299,10 @@ function TransactionsLoadingState({ company, accounts }: { company: any, account
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 max-w-md">
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4">
-                    🔍
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Buscar por descrição, valor ou documento..."
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    disabled
-                  />
-                </div>
+
+                <SearchInput
+                  placeholder="Buscar por descrição, valor ou documento..."
+                />
               </div>
 
               <div className="flex gap-2">

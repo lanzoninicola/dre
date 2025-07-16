@@ -18,19 +18,20 @@ import {
   Plus,
   ArrowLeft
 } from 'lucide-react';
-import { AccountPlan, BankTransaction, Company, Pagination, TransactionFilters, User } from '../transactions.types';
+import { Account, BankTransaction, Company, Pagination, TransactionFilters, User } from '../transactions.types';
 
 import { calculateTransactionStats, getTransactionStatus } from '../transactions.utils';
 import { useTableSelection, EnhancedColumnConfig, EnhancedDataTable } from './enhanced-data-table';
 import formatDate from '~/utils/format-date';
 import formatCurrency from '~/utils/format-currency';
+import LinkButton from '~/components/buttons/buttons';
 
 // Importar o componente de tabela melhorado
 
 
 interface TransactionsPageProps {
   transactions: BankTransaction[];
-  accounts: AccountPlan[];
+  accounts: Account[];
   company: Company;
   user: User;
   pagination: Pagination;
@@ -287,13 +288,11 @@ export function TransactionsPage({
         <Download className="w-4 h-4" />
         Exportar
       </button>
-      <Link
-        to={`/empresas/${company.id}/importar`}
-        className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-md flex items-center gap-2"
-      >
+      <LinkButton to={`/empresas/${company.id}/importar`}>
         <Plus className="w-4 h-4" />
         Importar Extrato
-      </Link>
+      </LinkButton>
+
     </>
   );
 

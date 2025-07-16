@@ -102,7 +102,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return json({ error: "Grupo DRE inválido." }, { status: 400 });
   }
 
-  await prismaClient.accountPlan.create({
+  await prismaClient.account.create({
     data: {
       name,
       type,

@@ -1,7 +1,7 @@
 // ~/domain/account-plan/account-plan.server.ts
 import prismaClient from "~/lib/prisma/client.server";
 
-export interface AccountPlan {
+export interface Account {
   id: string;
   name: string;
   type: "receita" | "despesa";
@@ -21,7 +21,7 @@ export async function getAccountPlanData(companyId: string) {
   try {
     const [accounts, dreGroups] = await Promise.all([
       // Buscar contas do plano de contas
-      prismaClient.accountPlan.findMany({
+      prismaClient.account.findMany({
         where: { companyId },
         include: {
           dreGroup: true,
@@ -73,7 +73,7 @@ export async function validateCompanyAccess(companyId: string, userId: string) {
 
 // Função para buscar conta específica
 export async function getAccountPlanById(accountId: string, companyId: string) {
-  return await prismaClient.accountPlan.findFirst({
+  return await prismaClient.account.findFirst({
     where: {
       id: accountId,
       companyId,
@@ -97,7 +97,7 @@ export async function createAccountPlan(data: {
   dreGroupId: string;
 }) {
   // Verificar se já existe uma conta com o mesmo nome
-  const existingAccount = await prismaClient.accountPlan.findFirst({
+  const existingAccount = await prismaClient.account.findFirst({
     where: {
       companyId: data.companyId,
       name: {
@@ -124,7 +124,7 @@ export async function createAccountPlan(data: {
     throw new Error("Tipo da conta não é compatível com o grupo DRE");
   }
 
-  return await prismaClient.accountPlan.create({
+  return await prismaClient.account.create({
     data: {
       name: data.name,
       type: data.type,
@@ -160,7 +160,7 @@ export async function updateAccountPlan(
   }
 
   // Verificar duplicidade de nome (exceto a própria conta)
-  const duplicateAccount = await prismaClient.accountPlan.findFirst({
+  const duplicateAccount = await prismaClient.account.findFirst({
     where: {
       companyId,
       name: {
@@ -188,7 +188,7 @@ export async function updateAccountPlan(
     throw new Error("Tipo da conta não é compatível com o grupo DRE");
   }
 
-  return await prismaClient.accountPlan.update({
+  return await prismaClient.account.update({
     where: { id: accountId },
     data: {
       name: data.name,
@@ -209,7 +209,7 @@ export async function updateAccountPlan(
 // Função para deletar conta
 export async function deleteAccountPlan(accountId: string, companyId: string) {
   // Verificar se a conta existe e tem transações
-  const account = await prismaClient.accountPlan.findFirst({
+  const account = await prismaClient.account.findFirst({
     where: { id: accountId, companyId },
     include: {
       _count: {
@@ -228,7 +228,7 @@ export async function deleteAccountPlan(accountId: string, companyId: string) {
     );
   }
 
-  return await prismaClient.accountPlan.delete({
+  return await prismaClient.account.delete({
     where: { id: accountId },
   });
 }
@@ -266,7 +266,7 @@ export async function moveAccountToGroup(
     return account;
   }
 
-  return await prismaClient.accountPlan.update({
+  return await prismaClient.account.update({
     where: { id: accountId },
     data: { dreGroupId: newDreGroupId },
     include: {
@@ -284,13 +284,13 @@ export async function moveAccountToGroup(
 export async function getAccountPlanStats(companyId: string) {
   const [totalAccounts, receitaAccounts, despesaAccounts, totalTransactions] =
     await Promise.all([
-      prismaClient.accountPlan.count({
+      prismaClient.account.count({
         where: { companyId },
       }),
-      prismaClient.accountPlan.count({
+      prismaClient.account.count({
         where: { companyId, type: "receita" },
       }),
-      prismaClient.accountPlan.count({
+      prismaClient.account.count({
         where: { companyId, type: "despesa" },
       }),
       prismaClient.bankTransaction.count({

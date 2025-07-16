@@ -150,8 +150,7 @@ export async function getUserCompaniesWithStats(
       include: {
         _count: {
           select: {
-            accountPlans: true,
-            bankTransactions: true,
+            accounts: true,
             users: true,
           },
         },
@@ -245,14 +244,14 @@ export async function updateCompany(
 export async function deleteCompany(companyId: string): Promise<void> {
   try {
     // Verificar se a empresa tem dados dependentes
-    const [accountPlans, bankTransactions] = await Promise.all([
-      prismaClient.accountPlan.count({ where: { companyId } }),
+    const [account, bankTransactions] = await Promise.all([
+      prismaClient.account.count({ where: { companyId } }),
       prismaClient.bankTransaction.count({
         where: { account: { companyId } },
       }),
     ]);
 
-    if (accountPlans > 0 || bankTransactions > 0) {
+    if (account > 0 || bankTransactions > 0) {
       throw new Error(
         "Não é possível excluir uma empresa que possui plano de contas ou transações cadastradas"
       );

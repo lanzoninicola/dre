@@ -19,6 +19,8 @@ import {
 import { requireUser } from "~/domain/auth/auth.server";
 import { prisma } from "~/infrastructure/prisma/client.server";
 import formatCurrency from "~/utils/format-currency";
+import { SearchInput } from "~/components/search-input/search-input";
+import { LinkButton } from "~/components/buttons/buttons";
 
 // Função para buscar empresas básicas (rápido)
 async function getCompaniesForUser(user: any) {
@@ -303,17 +305,11 @@ function InitialLoadingState({ user, companiesCount, basicCompanies }: {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Suas Empresas</h3>
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Buscar empresas..."
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      disabled
-                    />
-                  </div>
-                </div>
+
+                <SearchInput
+                  placeholder="Buscar empresas..."
+                />
+
               </div>
             </div>
             <CompaniesLoadingSkeleton basicCompanies={basicCompanies} />
@@ -398,22 +394,16 @@ function CompaniesSection({ companiesWithStats, user }: { companiesWithStats: an
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">Suas Empresas</h3>
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Buscar empresas..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
+
+              <SearchInput
+                placeholder="Buscar empresas..."
+              />
               {user.type === "accountingFirm" && (
-                <Link
-                  to="/empresas/nova"
-                  className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-4 py-2 rounded-md flex items-center gap-2"
-                >
+
+                <LinkButton to="/empresas/nova">
                   <Plus className="w-4 h-4" />
                   Nova Empresa
-                </Link>
+                </LinkButton>
               )}
             </div>
           </div>

@@ -71,7 +71,7 @@ CREATE TABLE "BankTransaction" (
 );
 
 -- CreateTable
-CREATE TABLE "AccountPlan" (
+CREATE TABLE "Account" (
     "id" TEXT NOT NULL,
     "company_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -150,13 +150,13 @@ ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_statement_id_fkey"
 ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_import_log_id_fkey" FOREIGN KEY ("import_log_id") REFERENCES "ImportLog"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "AccountPlan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AccountPlan" ADD CONSTRAINT "AccountPlan_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Account" ADD CONSTRAINT "AccountPlan_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AccountPlan" ADD CONSTRAINT "AccountPlan_dre_group_id_fkey" FOREIGN KEY ("dre_group_id") REFERENCES "DREGroup"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Account" ADD CONSTRAINT "AccountPlan_dre_group_id_fkey" FOREIGN KEY ("dre_group_id") REFERENCES "DREGroup"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "DRE" ADD CONSTRAINT "DRE_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

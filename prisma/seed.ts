@@ -4,8 +4,8 @@ const prisma = new PrismaClient();
 async function main() {
   const firm = await prisma.accountingFirm.create({
     data: {
-      name: "Contabilidade Modelo"
-    }
+      name: "Contabilidade Modelo",
+    },
   });
 
   const user = await prisma.user.create({
@@ -15,32 +15,32 @@ async function main() {
       role: "ADMIN",
       isActive: true,
       canManageUsers: true,
-      accountingFirmId: firm.id
-    }
+      accountingFirmId: firm.id,
+    },
   });
 
   const company = await prisma.company.create({
     data: {
       name: "Empresa Teste",
       userId: user.id,
-      accountingFirmId: firm.id
-    }
+      accountingFirmId: firm.id,
+    },
   });
 
   const dreGroup = await prisma.dREGroup.create({
     data: {
       name: "Receita Operacional",
-      order: 1
-    }
+      order: 1,
+    },
   });
 
-  await prisma.accountPlan.create({
+  await prisma.account.create({
     data: {
       name: "Receitas PIX",
       type: "INCOME",
       companyId: company.id,
-      dreGroupId: dreGroup.id
-    }
+      dreGroupId: dreGroup.id,
+    },
   });
 
   console.log("Seed concluído");

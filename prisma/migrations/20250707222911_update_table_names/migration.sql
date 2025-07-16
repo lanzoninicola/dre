@@ -1,7 +1,7 @@
 /*
   Warnings:
 
-  - You are about to drop the `AccountPlan` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `Account` table. If the table is not empty, all the data it contains will be lost.
   - You are about to drop the `AccountingFirm` table. If the table is not empty, all the data it contains will be lost.
   - You are about to drop the `AuditLog` table. If the table is not empty, all the data it contains will be lost.
   - You are about to drop the `BankStatement` table. If the table is not empty, all the data it contains will be lost.
@@ -14,10 +14,10 @@
 
 */
 -- DropForeignKey
-ALTER TABLE "AccountPlan" DROP CONSTRAINT "AccountPlan_company_id_fkey";
+ALTER TABLE "Account" DROP CONSTRAINT "AccountPlan_company_id_fkey";
 
 -- DropForeignKey
-ALTER TABLE "AccountPlan" DROP CONSTRAINT "AccountPlan_dre_group_id_fkey";
+ALTER TABLE "Account" DROP CONSTRAINT "AccountPlan_dre_group_id_fkey";
 
 -- DropForeignKey
 ALTER TABLE "AuditLog" DROP CONSTRAINT "AuditLog_user_id_fkey";
@@ -53,7 +53,7 @@ ALTER TABLE "ImportLog" DROP CONSTRAINT "ImportLog_user_id_fkey";
 ALTER TABLE "User" DROP CONSTRAINT "User_accounting_firm_id_fkey";
 
 -- DropTable
-DROP TABLE "AccountPlan";
+DROP TABLE "Account";
 
 -- DropTable
 DROP TABLE "AccountingFirm";

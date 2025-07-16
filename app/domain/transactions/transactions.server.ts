@@ -106,7 +106,7 @@ export async function getTransactionsByCompany({
 }
 
 export async function getAccountPlanByCompany(companyId: string) {
-  return await prisma.accountPlan.findMany({
+  return await prisma.account.findMany({
     where: {
       companyId: companyId,
       isActive: true,
@@ -146,7 +146,7 @@ export async function classifyTransaction({
   }
 
   // Verificar se a conta pertence à empresa
-  const account = await prisma.accountPlan.findFirst({
+  const account = await prisma.account.findFirst({
     where: {
       id: accountId,
       companyId: companyId,
@@ -216,7 +216,7 @@ export async function bulkClassifyTransactions({
   }
 
   // Verificar se a conta pertence à empresa
-  const account = await prisma.accountPlan.findFirst({
+  const account = await prisma.account.findFirst({
     where: {
       id: accountId,
       companyId: companyId,

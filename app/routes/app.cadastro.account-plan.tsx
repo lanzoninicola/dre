@@ -7,7 +7,7 @@ export default function AppCadastroAccountingPlanOutlet() {
 
   return (
     <PageLayout
-      title="Planos da conta"
+      title="Planos de contas"
       subtitle="Gerencie as contas contábeis e organize entre grupos DRE"
     >
       <Outlet />

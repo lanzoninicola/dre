@@ -11,14 +11,11 @@ import {
   Filter,
   Grid3X3,
   List,
-  ChevronRight,
-  MapPin,
-  Calendar,
+  ChevronRight, Calendar,
   Users
 } from "lucide-react";
 import { requireUser } from "~/domain/auth/auth.server";
 import prismaClient from "~/lib/prisma/client.server";
-import type { Company } from "@prisma/client";
 import { CompanyWithStats } from "~/domain/company/company.server";
 
 
@@ -134,7 +131,7 @@ function CompanyListItem({ company }: { company: CompanyWithStats }) {
           <div className="hidden sm:flex items-center gap-4 text-sm text-gray-600">
             <div className="flex items-center gap-1">
               <FolderTree className="w-4 h-4" />
-              <span>{company._count.accountPlans}</span>
+              <span>{company._count.accounts}</span>
             </div>
             <div className="flex items-center gap-1">
               <Users className="w-4 h-4" />
@@ -232,7 +229,7 @@ export default function AccountPlanIndex() {
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Contas Cadastradas</p>
                 <p className="text-2xl font-semibold text-green-600">
-                  {companies.reduce((sum, company) => sum + company._count.accountPlans, 0)}
+                  {companies.reduce((sum, company) => sum + company._count.accounts, 0)}
                 </p>
               </div>
               <FolderTree className="w-8 h-8 text-green-600" />

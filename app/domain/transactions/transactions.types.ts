@@ -35,7 +35,7 @@ export interface BankTransaction {
   };
 }
 
-export interface AccountPlan {
+export interface Account {
   id: string;
   name: string;
   code: string | null;

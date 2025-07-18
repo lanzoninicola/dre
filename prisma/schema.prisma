@@ -269,6 +269,7 @@ model Account {
 
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
+  createdBy String?
 
   /// Transações classificadas nesta conta
   bankTransactions BankTransaction[]

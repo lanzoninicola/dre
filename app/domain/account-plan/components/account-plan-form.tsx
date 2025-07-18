@@ -1,6 +1,7 @@
 // app/components/forms/AccountPlanForm.tsx
 import { useState, useEffect } from "react";
-import { useFetcher } from "@remix-run/react";
+import { Form } from "@remix-run/react";
+import { useNavigation } from "@remix-run/react";
 import { X, Save, FolderTree, Tag, AlertTriangle } from "lucide-react";
 
 interface DREGroup {
@@ -22,16 +23,22 @@ interface AccountPlanFormProps {
   dreGroups: DREGroup[];
   account?: Account | null;
   onClose: () => void;
+  actionData?: {
+    success?: boolean;
+    error?: string;
+    fieldErrors?: Record<string, string>;
+  };
 }
 
 export default function AccountPlanForm({
   companyId,
   dreGroups,
   account,
-  onClose
+  onClose,
+  actionData
 }: AccountPlanFormProps) {
-  const fetcher = useFetcher();
-  const isSubmitting = fetcher.state === "submitting";
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
   const isEditing = !!account;
 
   const [formData, setFormData] = useState({
@@ -39,8 +46,6 @@ export default function AccountPlanForm({
     type: account?.type || 'receita' as 'receita' | 'despesa',
     dreGroupId: account?.dreGroup.id || ''
   });
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Filtrar grupos DRE por tipo
   const filteredDreGroups = dreGroups.filter(group =>
@@ -70,58 +75,19 @@ export default function AccountPlanForm({
     }
   }, [formData.type, formData.dreGroupId, dreGroups, filteredDreGroups]);
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = 'Nome da conta é obrigatório';
-    } else if (formData.name.trim().length < 3) {
-      newErrors.name = 'Nome deve ter pelo menos 3 caracteres';
-    }
-
-    if (!formData.type) {
-      newErrors.type = 'Tipo da conta é obrigatório';
-    }
-
-    if (!formData.dreGroupId) {
-      newErrors.dreGroupId = 'Grupo DRE é obrigatório';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    const submitData = new FormData();
-    submitData.append('intent', isEditing ? 'update' : 'create');
-    submitData.append('name', formData.name.trim());
-    submitData.append('type', formData.type);
-    submitData.append('dreGroupId', formData.dreGroupId);
-
-    if (isEditing && account) {
-      submitData.append('accountId', account.id);
-    }
-
-    fetcher.submit(submitData, { method: 'post' });
-  };
-
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
   };
 
   // Fechar modal quando a submissão for bem-sucedida
   useEffect(() => {
-    if (fetcher.data?.success && !isSubmitting) {
+    if (actionData?.success && !isSubmitting) {
       onClose();
     }
-  }, [fetcher.data?.success, isSubmitting, onClose]);
+  }, [actionData?.success, isSubmitting, onClose]);
+
+  // Verificar se o formulário tem erros de campo
+  const fieldErrors = actionData?.fieldErrors || {};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -151,14 +117,21 @@ export default function AccountPlanForm({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <Form method="post" className="p-6 space-y-6">
+          {/* Hidden fields */}
+          <input type="hidden" name="intent" value={isEditing ? 'update' : 'create'} />
+          <input type="hidden" name="companyId" value={companyId} />
+          {isEditing && account && (
+            <input type="hidden" name="accountId" value={account.id} />
+          )}
+
           {/* Error Alert */}
-          {fetcher.data?.error && (
+          {actionData?.error && (
             <div className="bg-red-50 border border-red-200 rounded-md p-4">
               <div className="flex">
                 <AlertTriangle className="w-5 h-5 text-red-400" />
                 <div className="ml-3">
-                  <p className="text-sm text-red-700">{fetcher.data.error}</p>
+                  <p className="text-sm text-red-700">{actionData.error}</p>
                 </div>
               </div>
             </div>
@@ -172,17 +145,19 @@ export default function AccountPlanForm({
             <input
               type="text"
               id="name"
+              name="name"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
               placeholder="Ex: Vendas de Produtos"
-              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-indigo-500 ${errors.name
+              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-indigo-500 ${fieldErrors.name
                 ? 'border-red-300 focus:border-red-500'
                 : 'border-gray-300 focus:border-indigo-500'
                 }`}
               disabled={isSubmitting}
+              required
             />
-            {errors.name && (
-              <p className="text-sm text-red-600 mt-1">{errors.name}</p>
+            {fieldErrors.name && (
+              <p className="text-sm text-red-600 mt-1">{fieldErrors.name}</p>
             )}
           </div>
 
@@ -193,19 +168,21 @@ export default function AccountPlanForm({
             </label>
             <select
               id="type"
+              name="type"
               value={formData.type}
-              onChange={(e) => handleInputChange('type', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-indigo-500 ${errors.type
+              onChange={(e) => handleInputChange('type', e.target.value as 'receita' | 'despesa')}
+              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-indigo-500 ${fieldErrors.type
                 ? 'border-red-300 focus:border-red-500'
                 : 'border-gray-300 focus:border-indigo-500'
                 }`}
               disabled={isSubmitting}
+              required
             >
               <option value="receita">Receita</option>
               <option value="despesa">Despesa</option>
             </select>
-            {errors.type && (
-              <p className="text-sm text-red-600 mt-1">{errors.type}</p>
+            {fieldErrors.type && (
+              <p className="text-sm text-red-600 mt-1">{fieldErrors.type}</p>
             )}
           </div>
 
@@ -216,13 +193,15 @@ export default function AccountPlanForm({
             </label>
             <select
               id="dreGroupId"
+              name="dreGroupId"
               value={formData.dreGroupId}
               onChange={(e) => handleInputChange('dreGroupId', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-indigo-500 ${errors.dreGroupId
+              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-indigo-500 ${fieldErrors.dreGroupId
                 ? 'border-red-300 focus:border-red-500'
                 : 'border-gray-300 focus:border-indigo-500'
                 }`}
               disabled={isSubmitting}
+              required
             >
               <option value="">Selecione um grupo</option>
               {filteredDreGroups.map((group) => (
@@ -231,8 +210,8 @@ export default function AccountPlanForm({
                 </option>
               ))}
             </select>
-            {errors.dreGroupId && (
-              <p className="text-sm text-red-600 mt-1">{errors.dreGroupId}</p>
+            {fieldErrors.dreGroupId && (
+              <p className="text-sm text-red-600 mt-1">{fieldErrors.dreGroupId}</p>
             )}
             {filteredDreGroups.length === 0 && (
               <p className="text-sm text-yellow-600 mt-1">
@@ -287,7 +266,7 @@ export default function AccountPlanForm({
               )}
             </button>
           </div>
-        </form>
+        </Form>
       </div>
     </div>
   );

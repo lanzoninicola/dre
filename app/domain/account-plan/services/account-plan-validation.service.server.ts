@@ -8,7 +8,8 @@ import {
 
 export class AccountPlanValidationService {
   /**
-   * Validar dados do formulário (migrado e melhorado de validateAccountPlanData)
+   * Valida os dados de entrada do formulário usando Zod.
+   * Corrigido o uso de enum: z.enum não aceita 'required_error'
    */
   async validateFormData(
     formData: AccountFormData | UpdateAccountData
@@ -19,20 +20,35 @@ export class AccountPlanValidationService {
         .min(3, "Nome da conta deve ter pelo menos 3 caracteres")
         .max(100, "Nome da conta deve ter no máximo 100 caracteres")
         .trim(),
-      type: z.enum(["receita", "despesa"], {
-        required_error: "Tipo da conta deve ser 'receita' ou 'despesa'",
-      }),
+      // 🛠 Corrigido: 'required_error' não é válido para z.enum
+      type: z.enum(["receita", "despesa"]),
       dreGroupId: z
         .string()
         .min(1, "Grupo DRE é obrigatório")
         .uuid("Grupo DRE inválido"),
     });
 
-    return validateFormData(formData, schema);
+    const result = schema.safeParse(formData);
+
+    if (!result.success) {
+      const fieldErrors = Object.fromEntries(
+        Object.entries(result.error.flatten().fieldErrors).map(([key, val]) => [
+          key,
+          val?.[0] ?? "Erro de validação",
+        ])
+      );
+
+      return {
+        success: false,
+        fieldErrors,
+      };
+    }
+
+    return { success: true, data: result.data };
   }
 
   /**
-   * Validar regras de negócio específicas
+   * Regras de negócio adicionais: valida o tipo de grupo DRE e verifica nomes duplicados.
    */
   async validateBusinessRules(
     companyId: string,
@@ -40,7 +56,6 @@ export class AccountPlanValidationService {
     accountId?: string
   ): Promise<ValidationResult> {
     try {
-      // Verificar grupo DRE
       const dreGroup = await prismaClient.dREGroup.findUnique({
         where: { id: data.dreGroupId },
       });
@@ -61,7 +76,6 @@ export class AccountPlanValidationService {
         };
       }
 
-      // Verificar nome duplicado
       const existingAccount = await prismaClient.account.findFirst({
         where: {
           companyId,
@@ -81,7 +95,7 @@ export class AccountPlanValidationService {
       }
 
       return { success: true };
-    } catch (error) {
+    } catch {
       return {
         success: false,
         error: "Erro na validação de regras de negócio",
@@ -90,7 +104,10 @@ export class AccountPlanValidationService {
   }
 
   /**
-   * Validar integridade completa do plano de contas
+   * Valida o plano de contas completo, incluindo:
+   * - nomes duplicados
+   * - grupos DRE inconsistentes
+   * - contas não utilizadas
    */
   async validateAccountPlan(companyId: string): Promise<ValidationResult> {
     try {
@@ -104,7 +121,10 @@ export class AccountPlanValidationService {
 
       const issues = {
         duplicateNames: this.findDuplicateNames(accounts),
-        invalidDREGroups: this.findInvalidDREGroups(accounts, dreGroups),
+        invalidDREGroups: this.findInvalidDREGroups(
+          accounts as { dreGroupId: string; type: string }[], // 🛠 Corrigido: tipagem explícita para evitar erro de compatibilidade TS2345
+          dreGroups
+        ),
         unusedAccounts: await this.findUnusedAccounts(accounts),
       };
 
@@ -112,12 +132,14 @@ export class AccountPlanValidationService {
 
       return {
         success: !hasIssues,
-        data: issues,
-        message: hasIssues
-          ? "Problemas encontrados no plano de contas"
-          : "Plano de contas válido",
+        data: {
+          ...issues,
+          summary: hasIssues
+            ? "Problemas encontrados no plano de contas"
+            : "Plano de contas válido",
+        },
       };
-    } catch (error) {
+    } catch {
       return {
         success: false,
         error: "Erro na validação do plano de contas",
@@ -125,44 +147,52 @@ export class AccountPlanValidationService {
     }
   }
 
-  private findDuplicateNames(accounts: any[]): any[] {
-    const nameMap = new Map();
-    const duplicates = [];
+  /**
+   * Localiza contas com nomes duplicados (case-insensitive).
+   */
+  private findDuplicateNames(accounts: { name: string; id: string }[]) {
+    const nameMap = new Map<string, { name: string; id: string }>();
+    const duplicates: { name: string; accounts: any[] }[] = [];
 
-    accounts.forEach((account) => {
-      const lowerName = account.name.toLowerCase();
-      if (nameMap.has(lowerName)) {
+    for (const acc of accounts) {
+      const key = acc.name.toLowerCase();
+      if (nameMap.has(key)) {
         duplicates.push({
-          name: account.name,
-          accounts: [nameMap.get(lowerName), account],
+          name: acc.name,
+          accounts: [nameMap.get(key), acc],
         });
       } else {
-        nameMap.set(lowerName, account);
+        nameMap.set(key, acc);
       }
-    });
+    }
 
     return duplicates;
   }
 
-  private findInvalidDREGroups(accounts: any[], dreGroups: any[]): any[] {
-    return accounts.filter((account) => {
-      const dreGroup = dreGroups.find((g) => g.id === account.dreGroupId);
-      return !dreGroup || dreGroup.type !== account.type;
-    });
+  /**
+   * Filtra contas cujo grupo DRE associado não é compatível com seu tipo.
+   */
+  private findInvalidDREGroups(
+    accounts: { dreGroupId: string; type: string }[],
+    dreGroups: { id: string; type: string }[]
+  ) {
+    const groupMap = new Map(dreGroups.map((g) => [g.id, g.type]));
+    return accounts.filter((acc) => groupMap.get(acc.dreGroupId) !== acc.type);
   }
 
-  private async findUnusedAccounts(accounts: any[]): Promise<any[]> {
-    const unusedAccounts = [];
+  /**
+   * Retorna todas as contas que não possuem transações associadas.
+   */
+  private async findUnusedAccounts(accounts: { id: string }[]) {
+    const unused: { id: string }[] = [];
 
-    for (const account of accounts) {
-      const transactionCount = await prismaClient.bankTransaction.count({
-        where: { accountId: account.id },
+    for (const acc of accounts) {
+      const count = await prismaClient.bankTransaction.count({
+        where: { accountId: acc.id },
       });
-      if (transactionCount === 0) {
-        unusedAccounts.push(account);
-      }
+      if (count === 0) unused.push(acc);
     }
 
-    return unusedAccounts;
+    return unused;
   }
 }

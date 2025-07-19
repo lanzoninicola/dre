@@ -1,65 +1,71 @@
-import { Account, DREGroup } from "@prisma/client";
-import { json, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { LoaderFunctionArgs, ActionFunctionArgs, redirect } from "@remix-run/node";
+import { useLoaderData, useActionData, useNavigate } from "@remix-run/react";
+import { json } from "zod";
 import AccountPlanForm from "~/domain/account-plan/components/account-plan-form";
+import { createAccountPlanService } from "~/domain/account-plan/services/accoun-plan.service.server";
 import { requireUser } from "~/domain/auth/auth.server";
-import prismaClient from "~/lib/prisma/client.server";
 
-type LoaderData = {
-  companyId: Company;
-  accountId: Account;
-  dreGroups: DREGroup[];
-};
-
-
-// 🔸 Loader: busca grupos DRE
-export async function loader({ params, request }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
   const user = await requireUser(request);
-  const companyId = params.companyId;
-  const accountId = params.accountId;
+  const { companyId, accountId } = params;
 
-  if (!companyId) {
-    throw new Response("Empresa não informada na URL", { status: 400 });
+  const accountPlanService = createAccountPlanService(user);
+
+  // Buscar dados completos (dreGroups) e conta específica
+  const [planResult, accountResult] = await Promise.all([
+    accountPlanService.getAccountPlanData(companyId!),
+    accountPlanService.getById(accountId!, companyId!)
+  ]);
+
+  if (!planResult.success) {
+    throw new Response(planResult.error, { status: 400 });
   }
 
-  if (!accountId) {
-    throw new Response("Conta não informada na URL", { status: 400 });
+  if (!accountResult.success) {
+    throw new Response(accountResult.error, { status: 404 });
   }
 
-  const accountingFirm = await prismaClient.accountingFirm.findFirst({
-    where: {
-      users: {
-        some: {
-          id: user.id
-        }
-      }
-    },
+  return json({
+    company: { id: companyId },
+    dreGroups: planResult.data.dreGroups,
+    account: accountResult.data,
+    user
   });
-
-  const company = await prismaClient.company.findUnique({
-    where: { id: companyId, accountingFirmId: accountingFirm?.id },
-  });
-
-  if (!company) {
-    throw new Response("Acesso negado à empresa", { status: 403 });
-  }
-
-  const dreGroups = await prismaClient.dREGroup.findMany({
-    orderBy: { name: "asc" }
-  });
-
-  return json<LoaderData>({ companyId, accountId, dreGroups });
 }
 
-export default function AppCadastroAccountingPlanCompanyEditAccount() {
-  const { companyId, accountId, dreGroups } = useLoaderData<LoaderData>();
+export async function action({ request, params }: ActionFunctionArgs) {
+  const user = await requireUser(request);
+  const { companyId, accountId } = params;
+  const formData = await request.formData();
+
+  const accountPlanService = createAccountPlanService(user);
+  const result = await accountPlanService.update(companyId!, accountId!, formData);
+
+  if (result.success) {
+    return redirect(`/app/cadastro/account-plan/${companyId}`);
+  }
+
+  return json(result);
+}
+
+export default function EditAccountPlanPage() {
+  const { company, dreGroups, account } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
+  const navigate = useNavigate();
+
+  const handleClose = () => {
+    navigate(`/app/cadastro/account-plan/${company.id}`);
+  };
 
   return (
-    <AccountPlanForm
-      companyId={companyId}
-      dreGroups={dreGroups}
-      account={editingAccount}
-      onClose={handleCloseForm}
-    />
-  )
+    <div className="container-content">
+      <AccountPlanForm
+        companyId={company.id}
+        dreGroups={dreGroups}
+        account={account}
+        onClose={handleClose}
+        actionData={actionData}
+      />
+    </div>
+  );
 }

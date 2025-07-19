@@ -1,7 +1,6 @@
 import { Form, useActionData, useNavigation } from "@remix-run/react";
 import type { ActionFunction, LoaderFunction } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { createUserSession, getUser, verifyPassword } from "~/domain/auth/auth.server";
 import prismaClient from "~/lib/prisma/client.server";
 import { badRequest } from "~/utils/http-response.server";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -10,6 +9,8 @@ import { AlertTriangle, ArrowRight, Calculator, Eye, EyeOff, Sparkles } from "lu
 import { useState, useEffect } from "react";
 import { GradientButton } from "~/components/layouts/gradient-button";
 import { GlassInput } from "~/components/layouts/glass-input";
+import { getUser, verifyPassword } from "~/domain/auth/auth.server";
+import { createUserSession } from "~/domain/auth/session.server";
 
 export const loader: LoaderFunction = async ({ request }) => {
   const user = await getUser(request);

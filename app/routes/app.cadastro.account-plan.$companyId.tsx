@@ -1,264 +1,195 @@
-import { Company, DREGroup } from "@prisma/client";
-import { json, LoaderFunctionArgs } from "@remix-run/node";
-import { Await, defer, Link, Outlet, useActionData, useFetcher, useLoaderData } from "@remix-run/react";
-import { Search, FolderTree, Tag, AlertTriangle, Check, Edit, Trash2, X, Loader2, Plus, ArrowLeft } from "lucide-react";
-import { useState, Suspense } from "react";
-import { Account, getAccountPlanData } from "~/domain/account-plan/account-plan.server";
+import { json } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData, useActionData, Link, Form } from "@remix-run/react";
+import { Plus, Edit, Trash2, BarChart3, ArrowRightLeft } from "lucide-react";
+import { useState } from "react";
+import { createAccountPlanService } from "~/domain/account-plan/services/accoun-plan.service.server";
 import { requireUser } from "~/domain/auth/auth.server";
-import { badRequest } from "~/utils/http-response.server";
-import AccountPlanForm from "~/domain/account-plan/components/account-plan-form";
-import { getCompanyById, validateUserCompanyAccess } from "~/domain/company/company.server";
-import prismaClient from "~/lib/prisma/client.server";
-import { PageLayout } from "~/components/layouts/page-layout";
-import { Button, LinkButton } from "~/components/buttons/buttons";
-import { Separator } from "~/components/ui/separator";
-import { SearchInput } from "~/components/search-input/search-input";
 
-interface LoaderData {
-  data: Promise<{
-    company: Company;
-    accounts: Account[];
-    dreGroups: DREGroup[];
-  }>;
-}
-
-export async function loader({ params, request }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
   const user = await requireUser(request);
-  const companyId = params.companyId;
+  const companyId = params.companyId!;
 
-  if (!companyId) {
-    return badRequest("Empresa não informada na URL");
+  if (!user) {
+    throw new Response("Autorização negada", { status: 401 })
   }
 
-  // Criar uma promise que retorna todos os dados necessários
-  const data = async () => {
-    try {
-      console.log(`[loader] Buscando dados para companyId: ${companyId}`);
+  if (!companyId) {
+    throw new Response("Company ID is required", { status: 400 });
+  }
 
-      const [company, accountPlanData] = await Promise.all([
-        getCompanyById(companyId),
-        getAccountPlanData(companyId)
-      ]);
+  const accountPlanService = createAccountPlanService({
+    id: user.id,
+    role: user.role,
+    accountingFirmId: user?.accountingFirmId ?? undefined
+  });
 
-      if (!company) {
-        throw new Error(`Empresa não encontrada com ID: ${companyId}`);
-      }
+  // Usar o método migrado que busca dados completos
+  const result = await accountPlanService.getAccountPlanData(companyId);
 
-      const hasAccess = await validateUserCompanyAccess(companyId, user.id);
-      if (!hasAccess) {
-        throw new Error("Você não tem acesso a esta empresa");
-      }
+  if (!result.success) {
+    throw new Response(result.error, { status: 400 });
+  }
 
-      return {
-        company,
-        accounts: accountPlanData.accounts,
-        dreGroups: accountPlanData.dreGroups
-      };
-    } catch (error) {
-      console.error('[loader] Erro ao carregar dados do plano de contas:', error);
-      throw error;
-    }
-  };
+  // Buscar estatísticas também
+  const statsResult = await accountPlanService.getStats(companyId);
 
-  return defer<LoaderData>({ data: data() });
+  return json({
+    ...result.data, // accounts e dreGroups
+    stats: statsResult.success ? statsResult.data : null,
+    user,
+    companyId
+  });
 }
 
-export async function action({ request }: LoaderFunctionArgs) {
+export async function action({ request, params }: ActionFunctionArgs) {
+  const user = await requireUser(request);
+  const companyId = params.companyId!;
   const formData = await request.formData();
-  const intent = formData.get("intent");
-  const companyId = formData.get("companyId")?.toString();
+  const intent = formData.get('intent') as string;
+  const accountId = formData.get('accountId') as string;
 
-  if (!companyId) {
-    return json({ error: "Empresa não informada." }, { status: 400 });
-  }
+  const accountPlanService = createAccountPlanService({
+    id: user.id,
+    role: user.role,
+    accountingFirmId: user?.accountingFirmId ?? undefined
+  });
 
-  try {
-    if (intent === "move-account") {
-      const accountId = formData.get("accountId")?.toString();
-      const newDreGroupId = formData.get("newDreGroupId")?.toString();
+  switch (intent) {
+    case 'delete':
+      return json(await accountPlanService.delete(companyId, accountId));
 
-      if (!accountId || !newDreGroupId) {
-        return json({ error: "Dados incompletos para mover conta." }, { status: 400 });
-      }
+    case 'move':
+      const newDreGroupId = formData.get('newDreGroupId') as string;
+      return json(await accountPlanService.moveAccountToGroup(accountId, companyId, newDreGroupId));
 
-      await prismaClient.account.update({
-        where: { id: accountId },
-        data: {
-          dreGroupId: newDreGroupId
-        }
-      });
-
-      return json({ success: "Conta movida com sucesso." });
-    }
-
-    if (intent === "delete") {
-      const accountId = formData.get("accountId")?.toString();
-
-      if (!accountId) {
-        return json({ error: "ID da conta não informado." }, { status: 400 });
-      }
-
-      await prismaClient.account.delete({
-        where: { id: accountId }
-      });
-
-      return json({ success: "Conta excluída com sucesso." });
-    }
-
-    return json({ error: "Ação não reconhecida." }, { status: 400 });
-  } catch (error: any) {
-    console.error("Erro na action do plano de contas:", error);
-    return json({ error: "Erro interno ao processar a solicitação." }, { status: 500 });
+    default:
+      return json({ success: false, error: "Ação não reconhecida" });
   }
 }
 
-// Componente principal com Suspense/Await
-export default function CompanyAccountingPlan() {
-  const { data } = useLoaderData<LoaderData>();
+export default function AccountPlanListPage() {
+  const { accounts, dreGroups, stats, companyId } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
+
+  // Agrupar contas por tipo
+  const receitaAccounts = accounts.filter(acc => acc.type === 'receita');
+  const despesaAccounts = accounts.filter(acc => acc.type === 'despesa');
 
   return (
-    <>
-      <Outlet />
-      <Suspense fallback={<AccountPlanLoading />}>
-        <Await
-          resolve={data}
-        // errorElement={
-        //   <div className="max-w-7xl mx-auto px-4 py-8">
-        //     <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
-        //       <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-        //       <h3 className="text-lg font-medium text-red-900 mb-2">
-        //         Erro ao carregar dados
-        //       </h3>
-        //       <p className="text-red-700 mb-4">
-        //         Não foi possível carregar o plano de contas da empresa selecionada.
-        //       </p>
-        //       <div className="flex gap-3 justify-center">
-        //         <button
-        //           onClick={() => window.location.reload()}
-        //           className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-md"
-        //         >
-        //           Tentar novamente
-        //         </button>
-        //         <Link
-        //           to="/app/cadastro/account-plan"
-        //           className="bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-md"
-        //         >
-        //           Voltar
-        //         </Link>
-        //       </div>
-        //     </div>
-        //   </div>
-        // }
-        >
-          {(resolvedData) => {
-            // Verificações de segurança
-            if (!resolvedData) {
-              console.error('No data resolved');
-              return (
-                <div className="max-w-7xl mx-auto px-4 py-8">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
-                    <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-yellow-900 mb-2">
-                      Dados não encontrados
-                    </h3>
-                    <p className="text-yellow-700 mb-4">
-                      Nenhum dado foi retornado para a empresa selecionada.
-                    </p>
-                    <Link
-                      to="/app/cadastro/account-plan"
-                      className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium px-4 py-2 rounded-md"
-                    >
-                      Voltar à seleção
-                    </Link>
-                  </div>
-                </div>
-              );
-            }
-
-            if (!resolvedData?.company) {
-              console.error('Company not found in resolved data');
-              return (
-                <div className="max-w-7xl mx-auto px-4 py-8">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
-                    <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-yellow-900 mb-2">
-                      Empresa não encontrada
-                    </h3>
-                    <p className="text-yellow-700 mb-4">
-                      A empresa selecionada não foi encontrada ou você não tem acesso a ela.
-                    </p>
-                    <Link
-                      to="/app/cadastro/account-plan"
-                      className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium px-4 py-2 rounded-md"
-                    >
-                      Voltar à seleção
-                    </Link>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <AccountPlanContent
-                company={resolvedData.company}
-                accounts={resolvedData.accounts || []}
-                dreGroups={resolvedData.dreGroups || []}
-              />
-            );
-          }}
-        </Await>
-      </Suspense>
-    </>
-  );
-}
-
-// Componente de Loading melhorado
-function AccountPlanLoading() {
-  return (
-    <div className="bg-gray-50 min-h-screen">
-      {/* Header Loading */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="h-8 bg-gray-200 rounded w-80 mb-2 animate-pulse"></div>
-              <div className="h-4 bg-gray-200 rounded w-64 animate-pulse"></div>
-            </div>
-            <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
-          </div>
+    <div className="container-content">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-heading-1">Plano de Contas</h1>
+          <p className="text-muted mt-2">
+            Gerencie as contas contábeis da empresa
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Link
+            to={`/app/cadastro/account-plan/${companyId}/stats`}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <BarChart3 className="w-4 h-4" />
+            Estatísticas
+          </Link>
+          <Link
+            to={`/app/cadastro/account-plan/${companyId}/new`}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Conta
+          </Link>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Filters Loading */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex gap-4">
-            <div className="h-10 bg-gray-200 rounded w-64 animate-pulse"></div>
-            <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
+      {/* Estatísticas rápidas */}
+      {stats && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="card-stat">
+            <div className="text-sm font-medium text-gray-600">Total de Contas</div>
+            <div className="text-2xl font-bold text-gray-900">{stats.totalAccounts}</div>
           </div>
-          <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
+          <div className="card-stat">
+            <div className="text-sm font-medium text-gray-600">Receitas</div>
+            <div className="text-2xl font-bold text-green-600">{stats.receitaAccounts}</div>
+          </div>
+          <div className="card-stat">
+            <div className="text-sm font-medium text-gray-600">Despesas</div>
+            <div className="text-2xl font-bold text-red-600">{stats.despesaAccounts}</div>
+          </div>
+          <div className="card-stat">
+            <div className="text-sm font-medium text-gray-600">Transações</div>
+            <div className="text-2xl font-bold text-blue-600">{stats.totalTransactions}</div>
+          </div>
         </div>
+      )}
 
-        {/* Stats Loading */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white border border-gray-200 rounded-lg p-6">
-              <div className="flex items-center">
-                <div className="flex-1">
-                  <div className="h-4 bg-gray-200 rounded w-24 mb-2 animate-pulse"></div>
-                  <div className="h-8 bg-gray-200 rounded w-16 animate-pulse"></div>
-                </div>
-                <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+      {/* Mensagens de feedback */}
+      {actionData?.success && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
+          <p className="text-green-700">{actionData.message}</p>
+        </div>
+      )}
+
+      {actionData?.error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+          <p className="text-red-700">{actionData.error}</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Contas de Receita */}
+        <div className="card-default">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-heading-3 text-green-700">Contas de Receita</h3>
+            <p className="text-small text-gray-500 mt-1">
+              {receitaAccounts.length} conta(s) cadastrada(s)
+            </p>
+          </div>
+
+          <div className="divide-y divide-gray-200">
+            {receitaAccounts.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                Nenhuma conta de receita cadastrada
               </div>
-            </div>
-          ))}
+            ) : (
+              receitaAccounts.map((account) => (
+                <AccountRow
+                  key={account.id}
+                  account={account}
+                  companyId={companyId!}
+                  dreGroups={dreGroups}
+                />
+              ))
+            )}
+          </div>
         </div>
 
-        {/* Content Loading */}
-        <div className="bg-white border border-gray-200 rounded-lg p-8">
-          <div className="flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-            <span className="ml-3 text-gray-600">Carregando plano de contas...</span>
+        {/* Contas de Despesa */}
+        <div className="card-default">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-heading-3 text-red-700">Contas de Despesa</h3>
+            <p className="text-small text-gray-500 mt-1">
+              {despesaAccounts.length} conta(s) cadastrada(s)
+            </p>
+          </div>
+
+          <div className="divide-y divide-gray-200">
+            {despesaAccounts.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                Nenhuma conta de despesa cadastrada
+              </div>
+            ) : (
+              despesaAccounts.map((account) => (
+                <AccountRow
+                  key={account.id}
+                  account={account}
+                  companyId={companyId!}
+                  dreGroups={dreGroups}
+                />
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -266,457 +197,134 @@ function AccountPlanLoading() {
   );
 }
 
-function AccountPlanContent({
-  company,
-  accounts = [],
-  dreGroups = []
-}: {
-  company: Company | null;
-  accounts: Account[];
-  dreGroups: DREGroup[];
-}) {
-  const actionData = useActionData<typeof action>();
-  const fetcher = useFetcher();
-
-  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
-  const [showSearchTerm, setShowSearchTerm] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("");
-  const [typeFilter, setTypeFilter] = useState<'all' | 'receita' | 'despesa'>('all');
-  const [draggedAccount, setDraggedAccount] = useState<Account | null>(null);
-
-  // Verificação de segurança para company
-  if (!company) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
-          <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-yellow-900 mb-2">
-            Empresa não encontrada
-          </h3>
-          <p className="text-yellow-700 mb-4">
-            A empresa selecionada não foi encontrada ou você não tem acesso a ela.
-          </p>
-          <Link
-            to="/app/cadastro/account-plan"
-            className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium px-4 py-2 rounded-md"
-          >
-            Voltar à seleção
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Filtrar contas
-  const filteredAccounts = accounts?.filter(account => {
-    const matchesSearch = account?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      account?.dreGroup?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter === 'all' || account.type === typeFilter;
-    return matchesSearch && matchesType;
-  }) || [];
-
-  // Agrupar por grupo DRE
-  const groupedAccounts = filteredAccounts.reduce((groups, account) => {
-    const groupName = account.dreGroup?.name || 'Sem grupo';
-
-    if (!groups[groupName]) {
-      groups[groupName] = [];
-    }
-    groups[groupName].push(account);
-    return groups;
-  }, {} as Record<string, Account[]>);
-
-  const handleEdit = (account: Account) => {
-    setEditingAccount(account);
-  };
-
-  const handleDelete = (account: Account) => {
-    setDeletingAccount(account);
-  };
-
-  const handleCloseForm = () => {
-    setEditingAccount(null);
-  };
-
-  const handleCloseDelete = () => {
-    setDeletingAccount(null);
-  };
-
-  // Drag and Drop handlers
-  const handleDragStart = (e: React.DragEvent, account: Account) => {
-    setDraggedAccount(account);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = (e: React.DragEvent, targetGroupId: string) => {
-    e.preventDefault();
-
-    if (!draggedAccount) return;
-
-    const targetGroup = dreGroups.find(g => g.id === targetGroupId);
-    if (!targetGroup) return;
-
-    // Verificar se o tipo é compatível
-    if (draggedAccount.type !== targetGroup.type) {
-      // Mostrar mensagem de erro
-      return;
-    }
-
-    // Se já está no mesmo grupo, não fazer nada
-    if (draggedAccount.dreGroup.id === targetGroupId) return;
-
-    // Mover a conta
-    fetcher.submit(
-      {
-        intent: "move-account",
-        accountId: draggedAccount.id,
-        newDreGroupId: targetGroupId,
-        companyId: company.id
-      },
-      { method: "post" }
-    );
-
-    setDraggedAccount(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedAccount(null);
-  };
+// Componente para linha da conta
+function AccountRow({ account, companyId, dreGroups }) {
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const canDelete = account._count.bankTransactions === 0;
 
   return (
     <>
-
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-6">
-        <div className="flex flex-col gap-2  mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                to="/app/cadastro/account-plan"
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 text-sm"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Voltar
-              </Link>
-              <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
-              <h1 className="text-xl font-semibold text-gray-900">
-                Plano de Contas - {company?.name}
-              </h1>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <Button variant="outline" onClick={() => {
-                setShowSearchTerm(!showSearchTerm)
-                setSearchTerm("")
-              }}>
-                <Search className="w-4 h-4" />
-                Buscar
-              </Button>
-
-              <LinkButton to="new"            >
-                <Plus className="w-4 h-4" />
-                Nova Conta
-              </LinkButton>
-            </div>
-          </div>
-          {/* Filtros */}
-          {
-            showSearchTerm && (
-              <div className="flex justify-between items-center mt-4 transition duration-200">
-                <div className="flex flex-col sm:flex-row gap-4 w-full">
-                  <div className="flex-1">
-                    <SearchInput
-                      placeholder="Buscar contas..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <select
-                      value={typeFilter}
-                      onChange={(e) => setTypeFilter(e.target.value as 'all' | 'receita' | 'despesa')}
-                      className="text-sm border border-gray-300 rounded-md px-3 py-2 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    >
-                      <option value="all">Todos os tipos</option>
-                      <option value="receita">Receitas</option>
-                      <option value="despesa">Despesas</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )
-          }
-        </div>
-      </div>
-
-      <Separator className="my-6" />
-
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <div className="flex items-center">
-              <div className="flex-1">
-                <p className="text-sm text-gray-600">Total de Contas</p>
-                <p className="text-2xl font-semibold text-gray-900">{accounts?.length || 0}</p>
-              </div>
-              <FolderTree className="w-8 h-8 text-indigo-600" />
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <div className="flex items-center">
-              <div className="flex-1">
-                <p className="text-sm text-gray-600">Contas de Receita</p>
-                <p className="text-2xl font-semibold text-green-600">
-                  {accounts?.filter(a => a.type === 'receita').length || 0}
-                </p>
-              </div>
-              <Tag className="w-8 h-8 text-green-600" />
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <div className="flex items-center">
-              <div className="flex-1">
-                <p className="text-sm text-gray-600">Contas de Despesa</p>
-                <p className="text-2xl font-semibold text-red-600">
-                  {accounts?.filter(a => a.type === 'despesa').length || 0}
-                </p>
-              </div>
-              <Tag className="w-8 h-8 text-red-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Alertas */}
-        {actionData?.error && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-            <div className="flex">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-              <div className="ml-3">
-                <p className="text-sm text-red-700">{actionData.error}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {actionData?.success && (
-          <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
-            <div className="flex">
-              <Check className="w-5 h-5 text-green-400" />
-              <div className="ml-3">
-                <p className="text-sm text-green-700">{actionData.success}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Instruções de Drag and Drop */}
-        {accounts?.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex items-start gap-3">
-              <FolderTree className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <h3 className="text-sm font-medium text-blue-900">
-                  Reorganizar Contas
-                </h3>
-                <p className="text-sm text-blue-700 mt-1">
-                  Arraste e solte as contas entre os grupos DRE para reorganizar o plano de contas.
-                  Só é possível mover contas entre grupos compatíveis (receita para receita, despesa para despesa).
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Lista de Contas Agrupadas */}
-        {Object.keys(groupedAccounts).length > 0 ? (
-          <div className="space-y-6">
-            {Object.entries(groupedAccounts).map(([groupName, groupAccounts]) => {
-              const group = dreGroups.find(g => g.name === groupName);
-              return (
-                <div
-                  key={groupName}
-                  className={`bg-white border border-gray-200 rounded-lg transition-colors ${draggedAccount && group && draggedAccount.type === group.type
-                    ? 'border-indigo-300 bg-indigo-50'
-                    : ''
-                    }`}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => group && handleDrop(e, group.id)}
-                >
-                  <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <h3 className="text-lg font-medium text-gray-900">{groupName}</h3>
-                    <p className="text-sm text-gray-500">
-                      {groupAccounts.length} conta{groupAccounts.length !== 1 ? 's' : ''} •
-                      Tipo: {group?.type === 'receita' ? 'Receita' : 'Despesa'}
-                    </p>
-                  </div>
-                  <div className="divide-y divide-gray-200">
-                    {groupAccounts.map((account) => (
-                      <div
-                        key={account.id}
-                        className={`p-6 hover:bg-gray-50 cursor-move transition-colors ${draggedAccount?.id === account.id ? 'opacity-50' : ''
-                          }`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, account)}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-8 bg-gray-300 rounded cursor-grab active:cursor-grabbing" />
-                              <h4 className="text-lg font-medium text-gray-900">
-                                {account.name}
-                              </h4>
-                              <span
-                                className={`px-2 py-1 text-xs font-medium rounded border ${account.type === 'receita'
-                                  ? 'bg-green-50 text-green-700 border-green-200'
-                                  : 'bg-red-50 text-red-700 border-red-200'
-                                  }`}
-                              >
-                                {account.type === 'receita' ? 'Receita' : 'Despesa'}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {account._count?.bankTransactions || 0} transação{(account._count?.bankTransactions || 0) !== 1 ? 'ões' : ''} vinculada{(account._count?.bankTransactions || 0) !== 1 ? 's' : ''}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleEdit(account)}
-                              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-2 rounded-md"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(account)}
-                              disabled={(account._count?.bankTransactions || 0) > 0}
-                              className={`p-2 rounded-md ${(account._count?.bankTransactions || 0) > 0
-                                ? 'text-gray-400 cursor-not-allowed'
-                                : 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                                }`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-            <FolderTree className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || typeFilter !== 'all' ? 'Nenhuma conta encontrada' : 'Nenhuma conta cadastrada'}
-            </h3>
-            <p className="text-gray-500 mb-6">
-              {searchTerm || typeFilter !== 'all'
-                ? 'Tente ajustar os filtros de busca.'
-                : 'Comece criando sua primeira conta do plano de contas.'}
-            </p>
-            {(!searchTerm && typeFilter === 'all') && (
-              <Link
-                to="new"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-md inline-flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Criar primeira conta
-              </Link>
+      <div className="p-6 flex items-center justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <h4 className="font-medium text-gray-900">{account.name}</h4>
+            {account._count.bankTransactions > 0 && (
+              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                {account._count.bankTransactions} transações
+              </span>
             )}
           </div>
-        )}
+          <p className="text-sm text-gray-500 mt-1">{account.dreGroup.name}</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowMoveModal(true)}
+            className="btn-ghost p-2"
+            title="Mover para outro grupo"
+          >
+            <ArrowRightLeft className="w-4 h-4" />
+          </button>
+
+          <Link
+            to={`/app/cadastro/account-plan/${companyId}/edit/${account.id}`}
+            className="btn-ghost p-2"
+            title="Editar conta"
+          >
+            <Edit className="w-4 h-4" />
+          </Link>
+
+          {canDelete && (
+            <Form method="post" className="inline">
+              <input type="hidden" name="intent" value="delete" />
+              <input type="hidden" name="accountId" value={account.id} />
+              <button
+                type="submit"
+                className="btn-ghost p-2 text-red-600 hover:text-red-700"
+                title="Excluir conta"
+                onClick={(e) => {
+                  if (!confirm('Tem certeza que deseja excluir esta conta?')) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </Form>
+          )}
+        </div>
       </div>
 
-      {/* Modal de Formulário */}
-      {editingAccount && (
-        <AccountPlanForm
-          companyId={company?.id}
+      {/* Modal para mover conta */}
+      {showMoveModal && (
+        <MoveAccountModal
+          account={account}
           dreGroups={dreGroups}
-          account={editingAccount}
-          onClose={handleCloseForm}
+          onClose={() => setShowMoveModal(false)}
         />
       )}
-
-      {/* Modal de Confirmação de Exclusão */}
-      {deletingAccount && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">Excluir Conta</h3>
-              </div>
-              <button
-                onClick={handleCloseDelete}
-                disabled={fetcher.state === "submitting"}
-                className="text-gray-400 hover:text-gray-600 p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <p className="text-gray-700">
-                Tem certeza que deseja excluir a conta "{deletingAccount.name}"?
-              </p>
-              <p className="text-sm text-gray-500 mt-2">
-                Esta ação não pode ser desfeita.
-              </p>
-            </div>
-
-            <div className="flex gap-3 p-6 pt-0">
-              <button
-                type="button"
-                onClick={handleCloseDelete}
-                disabled={fetcher.state === "submitting"}
-                className="flex-1 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  fetcher.submit(
-                    {
-                      intent: "delete",
-                      accountId: deletingAccount.id,
-                      companyId: company?.id || ""
-                    },
-                    { method: "post" }
-                  );
-                  handleCloseDelete();
-                }}
-                disabled={fetcher.state === "submitting"}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {fetcher.state === "submitting" ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Excluindo...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" />
-                    Excluir
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </>
+  );
+}
+
+// Modal para mover conta entre grupos
+function MoveAccountModal({ account, dreGroups, onClose }) {
+  const filteredGroups = dreGroups.filter(g =>
+    g.type === account.type && g.id !== account.dreGroup.id
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="p-6 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Mover Conta: {account.name}
+          </h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Grupo atual: {account.dreGroup.name}
+          </p>
+        </div>
+
+        <Form method="post" className="p-6">
+          <input type="hidden" name="intent" value="move" />
+          <input type="hidden" name="accountId" value={account.id} />
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Novo Grupo DRE
+            </label>
+            <select
+              name="newDreGroupId"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              required
+            >
+              <option value="">Selecione um grupo</option>
+              {filteredGroups.map(group => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-secondary flex-1"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="btn-primary flex-1"
+              disabled={filteredGroups.length === 0}
+            >
+              Mover
+            </button>
+          </div>
+        </Form>
+      </div>
+    </div>
   );
 }

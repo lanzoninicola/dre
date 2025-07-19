@@ -27,6 +27,7 @@
 - [x] CreateAccountPlan (seed)
 - [ ] ListAccountPlansByCompany
 - [ ] EditAccountPlan
+- [ ] Improve messages when aError loading account plan data: Error: Acesso negado (app.cadastro.account-plan.$companyId)
 
 ## 5. 📈 Geração e Visualização de DRE
 

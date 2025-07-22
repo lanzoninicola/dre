@@ -13,6 +13,7 @@ import {
 import tailwindStylesheetUrl from "./styles/tailwind.css?url";
 import designTokensStylesheetUrl from "./styles/design-tokens.css?url";
 import { LinksFunction } from "@remix-run/node";
+import { Toaster } from "./components/ui/toaster";
 
 // Função que define os links CSS que serão carregados
 export const links: LinksFunction = () => {
@@ -54,6 +55,7 @@ export default function App() {
         {/* Container principal da aplicação */}
         <div id="root" className="h-full">
           <Outlet />
+          <Toaster />
         </div>
 
         <ScrollRestoration />

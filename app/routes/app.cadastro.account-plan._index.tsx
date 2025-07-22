@@ -17,6 +17,7 @@ import {
 import { requireUser } from "~/domain/auth/auth.server";
 import prismaClient from "~/lib/prisma/client.server";
 import { CompanyWithStats } from "~/domain/company/company.server";
+import { FilterToggle } from "~/components/filter-toggle/filter-toggle";
 
 
 
@@ -199,6 +200,21 @@ export default function AccountPlanIndex() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
+  const viewOptions = [
+    {
+      value: 'grid' as const,
+      label: 'Grade',
+      icon: Grid3X3,
+      shortLabel: 'Grid'
+    },
+    {
+      value: 'list' as const,
+      label: 'Lista',
+      icon: List,
+      shortLabel: 'List'
+    }
+  ];
+
   const filteredCompanies = searchTerm
     ? companies.filter(
       (company) =>
@@ -264,28 +280,11 @@ export default function AccountPlanIndex() {
               </div>
 
               {/* View Mode Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'grid'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                >
-                  <Grid3X3 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Grade</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'list'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                >
-                  <List className="w-4 h-4" />
-                  <span className="hidden sm:inline">Lista</span>
-                </button>
-              </div>
+              <FilterToggle
+                value={viewMode}
+                onChange={setViewMode}
+                options={viewOptions}
+              />
             </div>
           </div>
         </div>

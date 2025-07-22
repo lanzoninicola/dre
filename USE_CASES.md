@@ -1,6 +1,13 @@
 # Elenco de Use Cases – Fechamento Mensal com DDD
 
-## 1. 👥 Gestão de Usuários
+## 1A. 👥 Gestão de Colaboradores (Escritorio contabil)
+
+- [ ] CreateUser
+- [ ] DisableUser
+- [ ] ListUsersByAccountingFirm
+- [ ] ChangeUserRole
+
+## 1B. 👥 Gestão de Usuários (Suporte Sofware)
 
 - [ ] CreateUser
 - [ ] DisableUser
@@ -45,3 +52,4 @@
 - [ ] LoginUser
 - [x] CheckPermissionToManageUsers
 - [ ] CheckUserAccessToCompany
+- [ ] Gerenciamento menu do aplicativo

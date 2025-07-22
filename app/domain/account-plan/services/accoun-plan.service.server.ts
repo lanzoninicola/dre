@@ -20,7 +20,6 @@ export class AccountPlanService {
     this.utilityService = new AccountPlanUtilityService(user);
   }
 
-  // Métodos principais que combinam validação + CRUD + auditoria
   async create(
     companyId: string,
     accountData: CreateAccountData
@@ -109,6 +108,13 @@ export class AccountPlanService {
     return this.crudService.getAccountPlanData.bind(this.crudService);
   }
 
+  get getAccountPlanDataByType() {
+    return this.crudService.getAccountPlanDataByType.bind(this.crudService);
+  }
+
+  /**
+   * Buscar conta específica
+   */
   get getById() {
     return this.crudService.getById.bind(this.crudService);
   }

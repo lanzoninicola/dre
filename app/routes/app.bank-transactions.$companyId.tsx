@@ -12,13 +12,13 @@ import {
   verifyUserCompanyAccess,
   getTransactionsByCompany,
   getAccountPlanByCompany,
-  getCompanyById,
   classifyTransaction,
   bulkClassifyTransactions,
   reconcileTransaction
 } from "~/domain/transactions/transactions.server";
 import { buildTransactionFilters } from "~/domain/transactions/transactions.utils";
 import { SearchInput } from "~/components/search-input/search-input";
+import { getCompanyById } from "~/domain/company/company.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const user = await requireUser(request);

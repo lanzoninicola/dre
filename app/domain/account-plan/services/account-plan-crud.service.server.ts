@@ -55,8 +55,53 @@ export class AccountPlanCRUDService {
     }
   }
 
+  async getAccountPlanDataByType(
+    companyId: string,
+    type: "receita" | "despesa"
+  ): Promise<ServiceResult> {
+    try {
+      await this.checkPermissions(companyId);
+
+      const [accounts, dreGroups] = await Promise.all([
+        // Buscar contas do plano de contas
+        prismaClient.account.findMany({
+          where: { companyId, type },
+          include: {
+            dreGroup: true,
+            _count: {
+              select: {
+                bankTransactions: true,
+              },
+            },
+          },
+          orderBy: [{ dreGroup: { order: "asc" } }, { name: "asc" }],
+        }),
+        // Buscar grupos DRE disponíveis
+        prismaClient.dREGroup.findMany({
+          orderBy: { order: "asc" },
+        }),
+      ]);
+
+      console.log(`Account plan data loaded for company ${companyId}:`, {
+        accountsCount: accounts.length,
+        dreGroupsCount: dreGroups.length,
+      });
+
+      return {
+        success: true,
+        data: { accounts, dreGroups },
+      };
+    } catch (error: any) {
+      console.error("Error loading account plan data:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to load account plan data",
+      };
+    }
+  }
+
   /**
-   * Buscar conta específica (migrado de getAccountPlanById)
+   * Buscar conta específica
    */
   async getById(accountId: string, companyId: string): Promise<ServiceResult> {
     try {

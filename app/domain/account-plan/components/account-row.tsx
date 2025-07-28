@@ -12,31 +12,25 @@ export default function AccountRow({ account, companyId }: AccountRowProps) {
   const canDelete = account._count.bankTransactions === 0;
 
   return (
-    <div className="flex items-center justify-between px-3 py-3 hover:bg-gray-50 transition-colors">
+    <div className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors">
       {/* Info da conta */}
       <div className="flex-1">
-        <div className="flex items-center gap-3">
-          <p className="font-medium text-gray-900">{account.name}</p>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-900">
+            {account.name}
+          </span>
           {account._count.bankTransactions > 0 && (
             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
               {account._count.bankTransactions} transações
             </span>
           )}
         </div>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Grupo: {account.dreGroup.name}
-        </p>
       </div>
 
       {/* Ações */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {/* Mover */}
-        <Button
-          asChild
-          variant="ghost"
-          size="icon"
-          title="Mover para outro grupo"
-        >
+        <Button asChild variant="ghost" size="icon" title="Mover para outro grupo">
           <Link
             to={`/app/cadastro/account-plan/${companyId}/${account.type}/move?accountId=${account.id}`}
           >

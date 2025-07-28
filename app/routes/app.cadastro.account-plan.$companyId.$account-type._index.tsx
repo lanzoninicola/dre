@@ -39,6 +39,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     ...result.data, // accounts e dreGroups
     user,
     companyId,
+    accountType,
   });
 }
 
@@ -48,7 +49,7 @@ export default function AccountPlanCompanyIdType() {
   const sortedGroups = [...dreGroups].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 my-8">
       {sortedGroups.map((group) => {
         const groupAccounts = accounts.filter(
           (account) => account.dreGroupId === group.id
@@ -59,8 +60,7 @@ export default function AccountPlanCompanyIdType() {
         return (
           <Card key={group.id} className="border border-gray-200 shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center text-xl font-bold text-gray-900">
-                {/* Número do grupo */}
+              <CardTitle className="flex items-center text-lg font-bold text-gray-900">
                 <span className="text-blue-600 mr-2">{group.order}.</span>
                 {group.name}
               </CardTitle>

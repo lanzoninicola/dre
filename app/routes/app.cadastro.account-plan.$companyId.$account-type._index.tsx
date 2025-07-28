@@ -3,6 +3,8 @@ import { json, LoaderFunctionArgs } from "react-router";
 import AccountRow from "~/domain/account-plan/components/account-row";
 import { createAccountPlanService } from "~/domain/account-plan/services/accoun-plan.service.server";
 import { requireUser } from "~/domain/auth/auth.server";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const user = await requireUser(request);
@@ -27,7 +29,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     accountingFirmId: user?.accountingFirmId ?? undefined,
   });
 
-  // Busca contas e grupos DRE
   const result = await accountPlanService.getAccountPlanDataByType(companyId, accountType);
 
   if (!result.success) {
@@ -44,13 +45,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 export default function AccountPlanCompanyIdType() {
   const { accounts, dreGroups, companyId } = useLoaderData<typeof loader>();
 
-  // Ordenar grupos pelo campo order
   const sortedGroups = [...dreGroups].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {sortedGroups.map((group) => {
-        // Filtrar contas do grupo atual
         const groupAccounts = accounts.filter(
           (account) => account.dreGroupId === group.id
         );
@@ -58,14 +57,18 @@ export default function AccountPlanCompanyIdType() {
         if (groupAccounts.length === 0) return null;
 
         return (
-          <div key={group.id} className="bg-white rounded-xl shadow p-4">
-            {/* Cabeçalho do grupo */}
-            <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">
-              {group.name}
-            </h3>
+          <Card key={group.id} className="border border-gray-200 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center text-xl font-bold text-gray-900">
+                {/* Número do grupo */}
+                <span className="text-blue-600 mr-2">{group.order}.</span>
+                {group.name}
+              </CardTitle>
+            </CardHeader>
 
-            {/* Contas do grupo */}
-            <div className="divide-y">
+            <Separator />
+
+            <CardContent className="p-0 divide-y">
               {groupAccounts
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map((account) => (
@@ -76,8 +79,8 @@ export default function AccountPlanCompanyIdType() {
                     dreGroups={dreGroups}
                   />
                 ))}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         );
       })}
     </div>

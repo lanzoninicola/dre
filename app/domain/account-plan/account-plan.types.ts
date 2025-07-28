@@ -16,6 +16,7 @@ export interface ValidationResult {
 }
 
 export interface CreateAccountData {
+  code: string;
   name: string;
   type: "receita" | "despesa";
   dreGroupId: string;

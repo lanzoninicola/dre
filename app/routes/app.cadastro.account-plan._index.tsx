@@ -111,7 +111,7 @@ function CompanyCard({ company }: { company: CompanyWithStats }) {
 function CompanyListItem({ company }: { company: CompanyWithStats }) {
   return (
     <Link
-      to={`/app/cadastro/account-plan/${company.id}`}
+      to={`/app/cadastro/account-plan/${company.id}/receita`}
       className="w-full bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all duration-200"
     >
       <div className="flex items-center justify-between">

@@ -103,12 +103,12 @@ export default function AccountPlanListPage() {
       backTo="/app/cadastro/account-plan"
       title="Plano de Contas"
       actions={[
-        {
-          to: "stats",
-          icon: <BarChart3 className="w-4 h-4" />,
-          children: "Estatísticas",
-          variant: "outline"
-        },
+        // {
+        //   to: "stats",
+        //   icon: <BarChart3 className="w-4 h-4" />,
+        //   children: "Estatísticas",
+        //   variant: "outline"
+        // },
         {
           to: "new",
           icon: <Plus className="w-4 h-4" />,
@@ -137,7 +137,7 @@ export default function AccountPlanListPage() {
       <div className="container-content">
 
         {/* Estatísticas rápidas */}
-        {stats && (
+        {/* {stats && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div className="card-stat">
               <div className="text-sm font-medium text-gray-600">Total de Contas</div>
@@ -156,7 +156,7 @@ export default function AccountPlanListPage() {
               <div className="text-2xl font-bold text-blue-600">{stats.totalTransactions}</div>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Mensagens de feedback */}
         {actionData?.success && (

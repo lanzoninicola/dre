@@ -1,43 +1,85 @@
-import { CreateDreGroupData, UpdateDreGroupData, ServiceResult, User } from '../dre-groups.types';
-import { DreGroupsCRUDService } from './dre-groups-crud.service.server';
-import { DreGroupsValidationService } from './dre-groups-validation.service.server';
+import { createAuditLog } from '~/domain/audit/audit.server';
+import {
+  CreateDREGroupData,
+  UpdateDREGroupData,
+  ServiceResult,
+  User,
+} from '../dre-groups.types';
+import { DREGroupsCRUDService } from './dre-groups-crud.service.server';
+import { DREGroupsValidationService } from './dre-groups-validation.service.server';
 
-export class DreGroupsService {
-  private crudService: DreGroupsCRUDService;
-  private validationService: DreGroupsValidationService;
+export class DREGroupsService {
+  private crudService: DREGroupsCRUDService;
+  private validationService: DREGroupsValidationService;
 
   constructor(user: User) {
-    this.crudService = new DreGroupsCRUDService(user);
-    this.validationService = new DreGroupsValidationService();
+    this.crudService = new DREGroupsCRUDService(user);
+    this.validationService = new DREGroupsValidationService();
   }
 
-  async create(data: CreateDreGroupData): Promise<ServiceResult> {
+  async create(data: CreateDREGroupData): Promise<ServiceResult> {
     const validation = await this.validationService.validateFormData(data);
     if (!validation.success) return validation;
 
-    const businessValidation = await this.validationService.validateBusinessRules(
+    const business = await this.validationService.validateBusinessRules(
       validation.data!
     );
-    if (!businessValidation.success) return businessValidation;
+    if (!business.success) return business;
 
-    return this.crudService.create(validation.data!);
+    const result = await this.crudService.create(validation.data!);
+
+    if (result.success) {
+      await createAuditLog({
+        userId: this.crudService['user'].id,
+        action: 'CREATE',
+        entity: 'DREGroup',
+        entityId: result.data.id,
+        details: validation.data,
+      });
+    }
+
+    return result;
   }
 
-  async update(groupId: string, data: UpdateDreGroupData): Promise<ServiceResult> {
+  async update(id: string, data: UpdateDREGroupData): Promise<ServiceResult> {
     const validation = await this.validationService.validateFormData(data);
     if (!validation.success) return validation;
 
-    const businessValidation = await this.validationService.validateBusinessRules(
+    const business = await this.validationService.validateBusinessRules(
       validation.data!,
-      groupId
+      id
     );
-    if (!businessValidation.success) return businessValidation;
+    if (!business.success) return business;
 
-    return this.crudService.update(groupId, validation.data!);
+    const result = await this.crudService.update(id, validation.data!);
+
+    if (result.success) {
+      await createAuditLog({
+        userId: this.crudService['user'].id,
+        action: 'UPDATE',
+        entity: 'DREGroup',
+        entityId: id,
+        details: validation.data,
+      });
+    }
+
+    return result;
   }
 
-  delete(groupId: string) {
-    return this.crudService.delete(groupId);
+  async delete(id: string): Promise<ServiceResult> {
+    const result = await this.crudService.delete(id);
+
+    if (result.success) {
+      await createAuditLog({
+        userId: this.crudService['user'].id,
+        action: 'DELETE',
+        entity: 'DREGroup',
+        entityId: id,
+        details: {},
+      });
+    }
+
+    return result;
   }
 
   get getAll() {
@@ -49,6 +91,6 @@ export class DreGroupsService {
   }
 }
 
-export function createDreGroupsService(user: User) {
-  return new DreGroupsService(user);
+export function createDREGroupsService(user: User) {
+  return new DREGroupsService(user);
 }

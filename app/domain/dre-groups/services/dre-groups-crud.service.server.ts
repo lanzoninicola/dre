@@ -1,7 +1,12 @@
 import prismaClient from '~/lib/prisma/client.server';
-import { ServiceResult, CreateDreGroupData, UpdateDreGroupData, User } from '../dre-groups.types';
+import {
+  ServiceResult,
+  CreateDREGroupData,
+  UpdateDREGroupData,
+  User,
+} from '../dre-groups.types';
 
-export class DreGroupsCRUDService {
+export class DREGroupsCRUDService {
   constructor(private user: User) {}
 
   async getAll(): Promise<ServiceResult> {
@@ -11,57 +16,75 @@ export class DreGroupsCRUDService {
       });
       return { success: true, data: groups };
     } catch (error: any) {
-      return { success: false, error: error.message || 'Erro ao listar grupos' };
+      return { success: false, error: error.message || 'Erro ao buscar grupos' };
     }
   }
 
-  async getById(groupId: string): Promise<ServiceResult> {
+  async getById(id: string): Promise<ServiceResult> {
     try {
-      const group = await prismaClient.dREGroup.findUnique({ where: { id: groupId } });
-      if (!group) return { success: false, error: 'Grupo não encontrado' };
+      const group = await prismaClient.dREGroup.findUnique({ where: { id } });
+      if (!group) {
+        return { success: false, error: 'Grupo não encontrado' };
+      }
       return { success: true, data: group };
     } catch (error: any) {
       return { success: false, error: error.message || 'Erro ao buscar grupo' };
     }
   }
 
-  async create(data: CreateDreGroupData): Promise<ServiceResult> {
+  async create(data: CreateDREGroupData): Promise<ServiceResult> {
     try {
-      this.checkAdmin();
-      const group = await prismaClient.dREGroup.create({ data });
-      return { success: true, data: group, message: 'Grupo criado com sucesso' };
+      this.checkPermissions();
+      const newGroup = await prismaClient.dREGroup.create({ data });
+      return {
+        success: true,
+        data: newGroup,
+        message: 'Grupo criado com sucesso',
+      };
     } catch (error: any) {
       return { success: false, error: error.message || 'Erro ao criar grupo' };
     }
   }
 
-  async update(groupId: string, data: UpdateDreGroupData): Promise<ServiceResult> {
+  async update(id: string, data: UpdateDREGroupData): Promise<ServiceResult> {
     try {
-      this.checkAdmin();
-      const existing = await prismaClient.dREGroup.findUnique({ where: { id: groupId } });
-      if (!existing) return { success: false, error: 'Grupo não encontrado' };
-      const group = await prismaClient.dREGroup.update({ where: { id: groupId }, data });
-      return { success: true, data: group, message: 'Grupo atualizado com sucesso' };
+      this.checkPermissions();
+      const updatedGroup = await prismaClient.dREGroup.update({
+        where: { id },
+        data,
+      });
+      return {
+        success: true,
+        data: updatedGroup,
+        message: 'Grupo atualizado com sucesso',
+      };
     } catch (error: any) {
       return { success: false, error: error.message || 'Erro ao atualizar grupo' };
     }
   }
 
-  async delete(groupId: string): Promise<ServiceResult> {
+  async delete(id: string): Promise<ServiceResult> {
     try {
-      this.checkAdmin();
-      const count = await prismaClient.account.count({ where: { dreGroupId: groupId } });
-      if (count > 0) {
-        return { success: false, error: 'Grupo possui contas vinculadas' };
+      this.checkPermissions();
+      const accountsCount = await prismaClient.account.count({
+        where: { dreGroupId: id },
+      });
+
+      if (accountsCount > 0) {
+        return {
+          success: false,
+          error: 'Não é possível excluir grupo com contas vinculadas',
+        };
       }
-      await prismaClient.dREGroup.delete({ where: { id: groupId } });
+
+      await prismaClient.dREGroup.delete({ where: { id } });
       return { success: true, message: 'Grupo excluído com sucesso' };
     } catch (error: any) {
       return { success: false, error: error.message || 'Erro ao excluir grupo' };
     }
   }
 
-  private checkAdmin() {
+  private checkPermissions(): void {
     if (this.user.role !== 'admin') {
       throw new Error('Acesso negado');
     }

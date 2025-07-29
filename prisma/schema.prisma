@@ -232,6 +232,7 @@ model DREGroup {
   /// Contas que pertencem a este grupo
   accounts  Account[]
 
+  @@unique([order, type]) // unicidade apenas dentro do tipo
   @@map("dre_group")
 }
 

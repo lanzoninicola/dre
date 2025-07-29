@@ -93,6 +93,10 @@ export class DREGroupsService {
     return this.crudService.getById.bind(this.crudService);
   }
 
+  get getByType() {
+    return this.crudService.getByType.bind(this.crudService);
+  }
+
   async list(companyId: string, type: string) {
     const validType = DREGroupsValidationService.validateType(type);
     return this.crudService.getByType(companyId, validType);

@@ -36,13 +36,30 @@ export class DREGroupsCRUDService {
     }
   }
 
-  async getByType(companyId: string, type: string) {
-    const validType = DREGroupsValidationService.validateType(type);
+  async getByType(
+    companyId: string,
+    type: "receita" | "despesa"
+  ): Promise<ServiceResult> {
+    try {
+      await this.checkPermissions();
 
-    return prismaClient.dREGroup.findMany({
-      where: { type: validType },
-      orderBy: { order: "asc" },
-    });
+      const dreGroups = // Buscar grupos DRE disponíveis
+        await prismaClient.dREGroup.findMany({
+          where: { type },
+          orderBy: { order: "asc" },
+        });
+
+      return {
+        success: true,
+        data: { dreGroups },
+      };
+    } catch (error: any) {
+      console.error("Error loading account plan data:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to load account plan data",
+      };
+    }
   }
 
   async create(data: { name: string; type: string }) {

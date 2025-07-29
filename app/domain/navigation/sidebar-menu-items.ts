@@ -58,6 +58,11 @@ export const SIDEBAR_MENU_ITEMS: SidebarMenuItems = {
           href: "/app/cadastro/account-plan",
           icon: Building2,
         },
+        {
+          label: "Grupos DRE",
+          href: "/app/cadastro/dre-groups",
+          icon: Building2,
+        },
       ],
     },
     {

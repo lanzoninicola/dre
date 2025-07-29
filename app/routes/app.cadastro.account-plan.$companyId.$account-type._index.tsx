@@ -89,25 +89,23 @@ export default function AccountPlanCompanyIdType() {
     const oldIndex = groups.findIndex((g) => g.id === active.id);
     const newIndex = groups.findIndex((g) => g.id === over.id);
 
-    const newGroups = arrayMove(groups, oldIndex, newIndex).map((g, idx) => ({
-      ...g,
-      order: idx + 1,
-    }));
-
+    // Atualiza visualmente a ordem no estado
+    const newGroups = arrayMove(groups, oldIndex, newIndex);
     setGroups(newGroups);
 
-    // Apenas salva se estiver no modo reordering
+    // Envia apenas IDs na nova ordem para o backend
     if (isReordering) {
       fetcher.submit(
-        JSON.stringify(newGroups.map((g) => ({ id: g.id, order: g.order }))),
+        JSON.stringify(newGroups.map((g) => ({ id: g.id }))),
         {
           method: "post",
-          action: `/app/cadastro/account-plan/${companyId}/${accountType}/reorder-groups`, // agora dinâmico
+          action: `/app/cadastro/account-plan/${companyId}/${accountType}/reorder-groups`,
           encType: "application/json",
         }
       );
     }
   };
+
 
   return (
     <div className="space-y-4">
@@ -143,10 +141,9 @@ export default function AccountPlanCompanyIdType() {
                       {isReordering && (
                         <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       )}
-                      <p className="text-lg font-bold text-gray-900" data-name="card-title">
-                        <span className="text-blue-600 mr-2">{group.order}.</span>
+                      <CardTitle className="text-lg font-bold text-gray-900" style={{ marginTop: 0 }} data-name="card-title">
                         {group.name}
-                      </p>
+                      </CardTitle>
                     </CardHeader>
 
                     <Separator />

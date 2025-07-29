@@ -1,23 +1,19 @@
-import z from 'zod';
-import prismaClient from '~/lib/prisma/client.server';
-import {
-  ValidationResult,
-  DREGroupFormData,
-  UpdateDREGroupData,
-} from '../dre-groups.types';
+import z from "zod";
+import prismaClient from "~/lib/prisma/client.server";
+import { DreGroupFormData, ValidationResult } from "../dre-groups.types";
 
 export class DREGroupsValidationService {
   async validateFormData(
-    formData: DREGroupFormData | UpdateDREGroupData
+    formData: DreGroupFormData
   ): Promise<ValidationResult> {
     const schema = z.object({
       name: z
         .string()
-        .min(3, 'Nome deve ter pelo menos 3 caracteres')
-        .max(100, 'Nome deve ter no máximo 100 caracteres')
+        .min(3, "Nome deve ter pelo menos 3 caracteres")
+        .max(100, "Nome deve ter no máximo 100 caracteres")
         .trim(),
-      order: z.number().int().positive('Ordem deve ser um número positivo'),
-      type: z.enum(['receita', 'despesa', 'resultado']),
+      order: z.number().int().positive("Ordem deve ser um número positivo"),
+      type: z.enum(["receita", "despesa", "resultado"]),
     });
 
     const result = schema.safeParse(formData);
@@ -26,7 +22,7 @@ export class DREGroupsValidationService {
       const fieldErrors = Object.fromEntries(
         Object.entries(result.error.flatten().fieldErrors).map(([key, val]) => [
           key,
-          val?.[0] ?? 'Erro de validação',
+          val?.[0] ?? "Erro de validação",
         ])
       );
 
@@ -37,13 +33,13 @@ export class DREGroupsValidationService {
   }
 
   async validateBusinessRules(
-    data: DREGroupFormData,
+    data: DreGroupFormData,
     groupId?: string
   ): Promise<ValidationResult> {
     try {
       const existingByName = await prismaClient.dREGroup.findFirst({
         where: {
-          name: { equals: data.name, mode: 'insensitive' },
+          name: { equals: data.name, mode: "insensitive" },
           ...(groupId && { id: { not: groupId } }),
         },
       });
@@ -51,7 +47,7 @@ export class DREGroupsValidationService {
       if (existingByName) {
         return {
           success: false,
-          fieldErrors: { name: 'Já existe um grupo com este nome' },
+          fieldErrors: { name: "Já existe um grupo com este nome" },
         };
       }
 
@@ -62,13 +58,35 @@ export class DREGroupsValidationService {
       if (existingByOrder) {
         return {
           success: false,
-          fieldErrors: { order: 'Já existe um grupo com esta ordem' },
+          fieldErrors: { order: "Já existe um grupo com esta ordem" },
         };
       }
 
       return { success: true };
     } catch {
-      return { success: false, error: 'Erro na validação de regras de negócio' };
+      return {
+        success: false,
+        error: "Erro na validação de regras de negócio",
+      };
     }
+  }
+
+  private static validTypes = ["receita", "despesa", "resultado"] as const;
+
+  static validateType(type: string): "receita" | "despesa" | "resultado" {
+    if (!this.validTypes.includes(type as any)) {
+      throw new Error(`Invalid DRE group type: ${type}`);
+    }
+    return type as "receita" | "despesa" | "resultado";
+  }
+
+  static getBaseOrderByType(type: "receita" | "despesa" | "resultado"): number {
+    const orderBaseMap: Record<"receita" | "despesa" | "resultado", number> = {
+      receita: 10000,
+      despesa: 20000,
+      resultado: 30000,
+    };
+
+    return orderBaseMap[type];
   }
 }

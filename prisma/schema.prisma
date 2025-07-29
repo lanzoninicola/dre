@@ -224,7 +224,7 @@ model DREGroup {
   /// Nome do grupo (ex: "Receita Bruta")
   name      String    @unique
   /// Ordem de exibição na DRE
-  order     Int       @unique
+  order     Int?
   /// 'receita', 'despesa', 'resultado'
   type      String
   createdAt DateTime  @default(now())
